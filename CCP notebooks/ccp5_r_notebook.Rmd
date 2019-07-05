@@ -1,0 +1,460 @@
+---
+title: 'CCP5 R notebook (Liz class): analyses with 16 rows per person'
+output:
+  html_document:
+    code_folding: hide
+    df_print: paged
+    toc: true
+    toc_float: true
+    toc_depth: 4
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+######Script for 16 rows per person for possibly more powerful analyses
+
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(e1071)
+library(ggplot2)
+library(effects)
+library(RCurl)
+
+
+#import raw mlweb data
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/ChoiceCC_o2.csv")
+cc<-read.csv(text = x)
+
+
+##remove boxes of <200 ms
+#converts to difference in ms
+cc$MSdiff <- ave(cc$time, cc$id, FUN=function(x) c(0, diff(x)))
+
+#so that we can get mouseovers removed as well (i.e., when mouseout--value of next row--is less than 200)
+cc$nextdiff <- c(cc$MSdiff[-1], NA)
+
+cc<-cc[!(cc$event=="mouseout"&cc$MSdiff<200),]
+cc<-cc[!(cc$event=="mouseover"&cc$nextdiff<200),]
+
+##calculate total time each person took per trial
+cc$maxes<-NA
+maxes <- with(cc, tapply(time, id, max))
+cc$maxes <- maxes[match(cc$id,names(maxes))]
+
+##calculate total boxes opened
+cc$newtab<-NA
+
+newtab<-data.frame(table(cc$id[cc$event=="mouseover"]))
+colnames(newtab)[1]<-"id"
+colnames(newtab)[2]<-"numopened"
+
+cc$newtab <- newtab[match(cc$id,newtab$id), ]
+
+cc$numopened<-cc$newtab[,2]
+
+cc$sqrtnumopened<-sqrt(cc$numopened)
+cc$lognumopened<-log10(cc$numopened+1)
+
+##delete everything except for mouseouts
+ddd<-cc
+
+ddd<-ddd[!(ddd$event=="mouseover"),]
+ddd<-ddd[!(ddd$event=="onload"), ]
+ddd<-ddd[!(ddd$event=="subject"), ]
+ddd<-ddd[!(ddd$name=="row"), ]
+ddd<-ddd[!(ddd$event=="events"), ]
+ddd<-ddd[!(ddd$event=="submit"), ]
+ddd<-ddd[!(ddd$event=="onclick"), ]
+
+
+
+
+
+######Total dwell time on a box
+
+ddd$boxtotald<-NA
+
+boxdwellTOTAL<-aggregate(
+  MSdiff ~ id + name,
+  FUN=sum,
+  data=ddd
+)
+
+#create variable that combines id and name to match for (hack)
+ddd$doublematchingTIME<-NA
+ff<-NA
+ff <- paste(ddd$id, ddd$name, sep="_")
+ddd$doublematchingTIME<-ff
+boxdwellTOTAL$doublematchingTIME<-paste(boxdwellTOTAL$id, boxdwellTOTAL$name, sep="_")
+
+#now, match along this new variable
+ddd$boxtotald <- boxdwellTOTAL[match(ddd$doublematchingTIME,boxdwellTOTAL$doublematchingTIME), ]
+
+
+
+
+######Total fixations on a given box
+
+ddd$fixationCOUNT<-NA
+
+ddd$ones<-NA
+ddd$ones<-1
+
+fixCT<-aggregate(
+  ones ~ id + name,
+  FUN=sum,
+  data=ddd
+)
+
+#create variable that combines id and name to match for (hack)
+ddd$doublematching<-NA
+ee<-NA
+ee <- paste(ddd$id, ddd$name, sep="_")
+ddd$doublematching<-ee
+fixCT$doublematching<-paste(fixCT$id, fixCT$name, sep="_")
+
+#now, match along this new variable
+ddd$fixationCOUNT <- fixCT[match(ddd$doublematching,fixCT$doublematching), ]
+
+cc<-ddd
+
+# search time
+cc$searchtime<-cc$maxes/1000
+
+#sqrt transformation, which reduces skew
+cc$fixations<-cc$fixationCOUNT[,3]
+cc$sqrtfix<-sqrt(cc$fixations)
+cc$lognfix<-log10(cc$fixations+1)
+
+
+#sqrt transformation, which reduces skew
+cc$sqrttime<-sqrt(cc$searchtime)
+cc$logtime<-log10(cc$searchtime+1)
+
+##add variable whether they got it correct
+cc$correct<-NA
+cc$correct<-0
+
+cc$correct[cc$expname=="ChoiceCC"&cc$choice=="OptionA-Gloss"]<-1
+cc$correct[cc$expname=="ChoiceCC_o2"&cc$choice=="OptionA-Anywhere"]<-1
+cc$correct[cc$expname=="ChoiceCC_o3"&cc$choice=="OptionA-Ascent"]<-1
+cc$correct[cc$expname=="ChoiceCC_o4"&cc$choice=="OptionA-Journey"]<-1
+
+cc$correct[cc$expname=="ChoiceCC_trial2_o1"&cc$choice=="OptionC-Sequin"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_o2"&cc$choice=="OptionC-Polaris"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_o3"&cc$choice=="OptionC-Midnight"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_o4"&cc$choice=="OptionC-Surge"]<-1
+
+
+
+###Adding the time preference and Qualtrics data to the seach data
+
+#old file, had Qualtrics matched with mouselab, but only 2 lines per person; qual<-read.csv("/Users/kelle/Documents/matching mouselab and qualtrics liz class study.csv")
+
+qual<-read.csv("C:/Users/np2730/Desktop/Work Stuff/cc_study5_data/qualtrics liz class study.csv")
+
+qual$hierbeta<-qual$new_beta
+qual$hierdelta<-qual$new_delta
+
+full<-merge(qual, cc, by.x="V6", by.y="ip")
+
+#remove everything except fixations in the 16 boxes
+#remove the mouseover, leaving just the mouseouts
+full<-full[!(full$event=="order"),]
+full16<-full
+
+#down to just 16 per trial (32 per ID)
+
+full16$idname<-paste0(as.character(full16$id)," ", as.character(full16$name))
+full16$first3<-substr(full16$name,start=1,stop=3)
+
+full16oneper<-full16[,]
+
+full16one<-full16oneper[!(full16oneper$first3=="Opt"), ]
+full16o<-full16one[!duplicated(full16one$idname), ]
+
+f16<-full16one[!duplicated(full16one$idname), ]
+
+
+```
+# 1. Summary:
+
+In total, `r nrow(f16)/16` participants were collected.  
+
+
+# 2. Descriptive plots and descriptive statistics
+
+## 2.1 DEEP histograms
+
+### 2.1.1 Beta and Delta using Qi's method
+
+```{r}
+ggplot(f16, aes(x=hierbeta)) + 
+  geom_density()
+
+ggplot(f16, aes(x=hierdelta)) + 
+  geom_density()
+
+```
+
+
+### 2.1.2 Beta and Delta using Dan's method
+
+```{r message=FALSE, warning=FALSE}
+ggplot(f16, aes(x=beta)) + 
+  geom_density()
+
+ggplot(f16, aes(x=annualfactor)) + 
+  geom_density()
+
+#correlations are lower (better) using Dan's method.
+cor(f16$beta, f16$annualfactor)
+cor(f16$hierbeta, f16$hierdelta)
+
+```
+
+
+
+## 2.2 Search histograms displaying skewness and reasons for using sqrt transformation
+
+The rule I've been taught for skewness (which I also pre-registered, at least for CCP1) is if skewness is between -1 and +1, the variable can be left as is. If it is outside those, run a transformation to get it within those boundaries and as close to 0 as possible. Log-transformation results in a negative skew, which in CCP1 was less than -1 and is worse than the sqrt transformation in every study; square-root transformation does better (see stats below)
+
+```{r}
+skewness(f16$numopened,na.rm=TRUE)
+skewness(f16$sqrtnumopened,na.rm=TRUE)
+skewness(f16$lognumopened,na.rm=TRUE)
+
+hist(f16$numopened,main="Untransformed Boxes Opened",xlab="Boxes Opened (untransformed)",yaxt='n')
+summary(cc$numopened)
+
+hist(f16$sqrtnumopened,main="Sqrt Transformation",xlab="Sqrt boxes opened",yaxt='n')
+summary(f16$sqrtnumopened)
+
+hist(f16$lognumopened,main="Log Transformation",xlab="Log boxes opened",yaxt='n')
+summary(f16$lognumopened)
+
+
+```
+
+
+## 2.4 Choice accuracy overall
+
+```{r}
+summary(f16$correct)
+
+
+```
+
+
+## 2.5 Descriptives of the new box openings measure. 
+
+**Fixations** is the number of times a given box was opened. 16 lines per participant, corresponding to the 16 boxes in the mlweb display.
+
+Note. In this new format, skewness is actually best (lowest) for the log-transformation (3rd histogram and 3rd number in the skewness summary statistics below)
+
+```{r}
+skewness(f16$fixations,na.rm=TRUE)
+
+f16$sqrtfixations<-sqrt(f16$fixations)
+skewness(f16$sqrtfixations,na.rm=TRUE)
+
+f16$logfixations<-log10(f16$fixations+1)
+skewness(f16$logfixations,na.rm=TRUE)
+
+
+hist(f16$numopened,main="Untransformed Boxes Opened",xlab="Boxes Opened (untransformed)")
+
+hist(f16$sqrtnumopened,main="Sqrt Transformation",xlab="Sqrt boxes opened")
+
+hist(f16$lognumopened,main="Log Transformation",xlab="Log boxes opened")
+
+summary(f16$fixations)
+
+```
+
+## 2.4 Search time (with and without outliers excluded)
+
+Outliers get in the way of nice distributions, as is apparent below.  
+
+```{r}
+# Time spent searching per trial (raw count)
+hist(f16$searchtime, xlab="Search time (untransformed w/outliers)",yaxt='n')
+summary(f16$searchtime)
+
+# Time spent searching per trial (transformed to reduce skewness, outliers included)
+hist(f16$sqrttime, xlab="Sqrt search time w/outliers",yaxt='n')
+summary(f16$sqrttime)
+
+# Log transformed searchtime (outliers included)
+hist(f16$logtime, xlab = "Log search time w/outliers", yaxt = 'n')
+summary(f16$logtime)
+
+
+## Exclude search time outliers
+f16nooutliers<-f16[!(f16$searchtime>300), ]
+
+# Time spent searching per trial (raw count)
+hist(f16nooutliers$searchtime, xlab="Search time (untransformed)",yaxt='n')
+summary(f16nooutliers$searchtime)
+
+# Time spent searching per trial (transformed to reduce skewness)
+hist(f16nooutliers$sqrttime, xlab="Sqrt search time",yaxt='n')
+summary(f16nooutliers$sqrttime)
+
+# Log transformed searchtime
+hist(f16nooutliers$logtime, xlab = "Log search time", yaxt = 'n')
+summary(f16nooutliers$logtime)
+```
+
+
+# 3. New Inferential Analyses
+
+## 3.1. Model below predicts number of fixations on a box from attribute of the box, beta, delta, and interactions with beta and delta. 
+
+Note. It now converges even with this complex model, thanks to the optimizer... line of code.
+
+Results: Main effects of beta and standard rate (i.e., people with low present bias search more, and people look more at the standard rate boxes than the other boxes). No significant interactions, although there is a slight tendency for people with higher delta (i.e., those who discount less look more at the "period" attribute) <-- is all this true? - Nate 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# centering beta and delta
+f16$hierbeta.c<-NA
+f16$hierbeta.c<-f16$hierbeta-mean(f16$hierbeta,na.rm=TRUE)
+f16$hierdelta.c<-f16$hierdelta-mean(f16$hierdelta,na.rm=TRUE)
+
+f16$attbox<-NA
+f16$attbox[f16$first3=="Ann"]<-"Annual Fee"
+f16$attbox[f16$first3=="iAP"]<-"Intro Rate"
+f16$attbox[f16$first3=="iPe"]<-"Intro Period"
+f16$attbox[f16$first3=="1-A"|f16$first3=="2-A"|f16$first3=="3-A"|f16$first3=="4-A"]<-"APR"
+
+f16$dummystd<-0
+f16$dummystd[f16$attbox=="APR"]<-1
+
+f16$dummyintro<-0
+f16$dummyintro[f16$attbox=="Intro Rate"]<-1
+
+f16$dummyperiod<-0
+f16$dummyperiod[f16$attbox=="Intro Period"]<-1
+
+f16$dummyannual<-0
+f16$dummyannual[f16$attbox=="Annual Fee"]<-1
+
+f16$standard.c<-f16$dummystd-.5
+f16$intro.c<-f16$dummyintro-.5
+f16$period.c<-f16$dummyperiod-.5
+f16$annualfee.c<-f16$dummyannual-.5
+```
+
+```{r}
+f16$attbox<-as.factor(f16$attbox)
+
+m6a<-glmer(fixations~hierbeta.c+hierdelta.c+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m6a)
+
+m6t <- glmer(fixations~hierbeta.c*attbox + hierdelta.c*attbox + (1|ipaddress), data=f16,family=poisson, control=glmerControl(optimizer="bobyqa" , optCtrl=list(maxfun=2e5)))
+summary(m6t) 
+```
+
+
+
+
+## 3.2 Plot of the relationship between beta and fixations for each of the four attributes.
+
+```{r}
+
+m7<-glmer(fixations~hierbeta.c*attbox+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m7)
+
+plot(Effect(c("hierbeta.c", "attbox"), m7))
+
+```
+
+
+## 3.3 Plot of the relationship between delta and fixations for each of the four attributes.
+
+
+```{r}
+
+m8<-glmer(fixations~hierdelta.c*attbox+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m8)
+
+plot(Effect(c("hierdelta.c", "attbox"), m8))
+
+```
+
+
+### 3.3.1 Do we want to do logfixations too? Can't use poisson for that 
+
+```{r}
+m11l<-lmer(logfixations~hierbeta.c+hierdelta.c+(1|ipaddress),data=f16)
+summary(m11l)
+```
+
+
+## 3.4 Beta and delta prediction of accuracy (logit model)
+```{r}
+# logit mixed effects model, no controls
+m10 <- glmer(correct~hierbeta.c + hierdelta.c + (1|ipaddress), family = binomial(link = "logit"), data = f16) 
+# Note: new_beta and new_delta are same as hierbeta and hierdelta
+summary(m10)
+# logit mixed effects with controls 
+m10a <- glmer(correct~hierbeta.c + hierdelta.c + (1|ipaddress), family = binomial(link = "logit"), data = f16, control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))) 
+# Note: new_beta and new_delta are same as hierbeta and hierdelta
+summary(m10a)
+```
+
+
+
+## 3.5 Beta and delta prediction of sqrt number boxes opened
+```{r}
+m12 <- lmer(sqrtnumopened ~ hierbeta.c + hierdelta.c + (1|ipaddress), data = f16)
+summary(m12)
+```
+
+## 3.6 Beta and delta predictions of log time
+```{r}
+# With outliers (time > 300ms) included
+m13 <- lmer(logtime ~ hierbeta.c + hierdelta.c + (1|ipaddress), data = f16)
+summary(m13)
+
+f16nooutliers<-f16[!(f16$searchtime>300), ]
+
+# Outliers excluded
+m13a <- lmer(logtime ~ hierbeta.c + hierdelta.c + (1|ipaddress), data = f16nooutliers)
+summary(m13a)
+
+
+```
+
+## 3.7  Beta and delta predictions of search time
+
+```{r}
+#searchtime (outliers excluded)
+m3a<-lmer(logtime~hierbeta.c+hierdelta.c+(1|ipaddress),data=f16nooutliers)
+summary(m3a)
+```
+
+## 3.8 Mediation model: present bias-->less search-->lower accuracy  
+
+We get a significant indirect effect, as in previous studies. I'm not copying it here because it takes an hour or more to run and slows everything down.  
+ 
+ 
+# 4. ???   
+
+Adding zeros script begins here  
+
+Script from CCP4 will eventually need to be added, with a few changes (e.g., the "idlist" file will be different). But it should go somewhere prior to the descriptive and inferential analyses, but after all the variables are cleaned and merged.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+#idl<-read.csv("/Users/kelle/Documents/idlist_importR_ccp4.csv")
+
+
+#ljcopyrr <- left_join(idl, f16)
+
+
+#write.csv(ljcopyrr,file="/Users/kelle/Documents/ccp4replaceNAafterLJ_fixretrieve.csv")
+
+
+```
+
