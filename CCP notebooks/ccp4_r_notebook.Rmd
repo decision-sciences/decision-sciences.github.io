@@ -1,0 +1,643 @@
+---
+title: 'CCP4 (delayed boxes): analyses with 16 rows per person'
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: true
+    toc_depth: 4
+---
+
+
+# 1. Summary:
+
+Present bias predicts less search overall, though no significant interactions with type of attribute  
+
+Delta predicts more search especially for introductory period  (That is, with # of fixations on a given box as DV, there is a delta x intro period interaction)  
+
+Correlation between beta and delta gets slightly higher with Qi's method (r = .20 to r = .25)  
+
+Beta predicts search and accuracy  
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+######Script for 16 rows per person for possibly more powerful analyses
+
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(e1071)
+library(ggplot2)
+library(effects)
+library(RCurl)
+
+
+#import raw mlweb data
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/ma1.csv")
+cc_ma<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/mb1.csv")
+cc_mb<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/mc1.csv")
+cc_mc<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/md1.csv")
+cc_md<-read.csv(text = x,stringsAsFactors = FALSE)
+
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/la1.csv")
+cc_la<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/lb1.csv")
+cc_lb<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/lc1.csv")
+cc_lc<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/ld1.csv")
+cc_ld<-read.csv(text = x,stringsAsFactors = FALSE)
+
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/ma2.csv")
+cc_ma2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/mb2.csv")
+cc_mb2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/mc2.csv")
+cc_mc2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/md2.csv")
+cc_md2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/la2.csv")
+cc_la2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/lb2.csv")
+cc_lb2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/lc2.csv")
+cc_lc2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/ld2.csv")
+cc_ld2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+
+####bind files into one big R csv file.
+ccp1<-rbind(cc_ma, cc_mb, cc_mc, cc_md, cc_la, cc_lb, cc_lc, cc_ld, cc_ma2, cc_mb2, cc_mc2, cc_md2, cc_la2, cc_lb2, cc_lc2, cc_ld2)
+
+
+##remove boxes of <200 ms
+#converts to difference in ms
+ccp1$MSdiff <- ave(ccp1$time, ccp1$id, FUN=function(x) c(0, diff(x)))
+
+#so that we can get mouseovers removed as well (i.e., when mouseout--value of next row--is less than 200)
+ccp1$nextdiff <- c(ccp1$MSdiff[-1], NA)
+
+
+cc<-ccp1[!(ccp1$event=="mouseout"&ccp1$MSdiff<200),]
+cc<-ccp1[!(ccp1$event=="mouseover"&ccp1$nextdiff<200),]
+
+
+
+##calculate total time each person took per trial
+cc$maxes<-NA
+maxes <- with(cc, tapply(time, id, max))
+cc$maxes <- maxes[match(cc$id,names(maxes))]
+
+
+##calculate total boxes opened
+cc$newtab<-NA
+
+newtab<-data.frame(table(cc$id[cc$event=="mouseover"]))
+colnames(newtab)[1]<-"id"
+colnames(newtab)[2]<-"numopened"
+
+cc$newtab <- newtab[match(cc$id,newtab$id), ]
+
+#make timevar with row (linenumb) identifyer
+cc$linenumb <- with(cc, ave(as.character(id), id, FUN = seq_along))
+
+
+# search time
+cc$searchtime<-cc$maxes/1000
+
+#sqrt transformation, which reduces skew
+cc$numopened<-cc$newtab[,2]
+cc$sqrtnumopened<-sqrt(cc$numopened)
+cc$lognumopened<-log10(cc$numopened+1)
+
+cc$condition<-NA
+
+cc$condition[cc$expname=="ChoiceCC_ma"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_la"]<-"nodelay"
+cc$condition[cc$expname=="ChoiceCC_mb"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_lb"]<-"nodelay"
+cc$condition[cc$expname=="ChoiceCC_mc"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_lc"]<-"nodelay"
+cc$condition[cc$expname=="ChoiceCC_md"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_ld"]<-"nodelay"
+
+cc$condition[cc$expname=="ChoiceCC_trial2_ma"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_trial2_la"]<-"nodelay"
+cc$condition[cc$expname=="ChoiceCC_trial2_mb"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_trial2_lb"]<-"nodelay"
+cc$condition[cc$expname=="ChoiceCC_trial2_mc"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_trial2_lc"]<-"nodelay"
+cc$condition[cc$expname=="ChoiceCC_trial2_md"]<-"delay"
+cc$condition[cc$expname=="ChoiceCC_trial2_ld"]<-"nodelay"
+
+#sqrt transformation, which reduces skew
+cc$sqrttime<-sqrt(cc$searchtime)
+
+
+##add variable whether they got it correct
+cc$correct<-NA
+cc$correct<-0
+
+cc$correct[cc$expname=="ChoiceCC_ma"&cc$choice=="OptionA-Gloss"]<-1
+cc$correct[cc$expname=="ChoiceCC_mb"&cc$choice=="OptionA-Anywhere"]<-1
+cc$correct[cc$expname=="ChoiceCC_mc"&cc$choice=="OptionA-Ascent"]<-1
+cc$correct[cc$expname=="ChoiceCC_md"&cc$choice=="OptionA-Journey"]<-1
+
+cc$correct[cc$expname=="ChoiceCC_la"&cc$choice=="OptionA-Gloss"]<-1
+cc$correct[cc$expname=="ChoiceCC_lb"&cc$choice=="OptionA-Anywhere"]<-1
+cc$correct[cc$expname=="ChoiceCC_lc"&cc$choice=="OptionA-Ascent"]<-1
+cc$correct[cc$expname=="ChoiceCC_ld"&cc$choice=="OptionA-Journey"]<-1
+
+cc$correct[cc$expname=="ChoiceCC_trial2_ma"&cc$choice=="OptionC-Sequin"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_mb"&cc$choice=="OptionC-Polaris"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_mc"&cc$choice=="OptionC-Midnight"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_md"&cc$choice=="OptionC-Surge"]<-1
+
+cc$correct[cc$expname=="ChoiceCC_trial2_la"&cc$choice=="OptionC-Sequin"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_lb"&cc$choice=="OptionC-Polaris"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_lc"&cc$choice=="OptionC-Midnight"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_ld"&cc$choice=="OptionC-Surge"]<-1
+
+
+
+
+
+#Search descriptives as a function of condition (delayed boxes vs. no delay)
+
+ccdelay<-cc[(cc$condition=="delay"), ]
+ccnodelay<-cc[(cc$condition=="nodelay"), ]
+
+
+###Adding the time preference and Qualtrics data to the seach data
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/delayed%20boxes%20DEEP%20(paired%20with%20qualtrics,%20ccp4).csv")
+qual<-read.csv(text = x,stringsAsFactors = FALSE)
+
+qual$hierbeta<-qual$new_beta
+qual$hierdelta<-qual$new_annualfactor
+
+full<-merge(qual, cc, by.x="ipaddress", by.y="ip")
+
+#remove everything except fixations in the 16 boxes
+#remove the mouseover, leaving just the mouseouts
+full<-full[!(full$event=="mouseover"),]
+full<-full[!(full$event=="onload"),]
+full<-full[!(full$event=="subject"),]
+full<-full[!(full$event=="order"),]
+full<-full[!(full$event=="events"),]
+full<-full[!(full$event=="onclick"),]
+full<-full[!(full$event=="submit"),]
+
+##count the mouseouts in each box
+full16<-full %>% group_by(id, name) %>% mutate(fixations = n())
+
+#down to just 16 per trial (32 per ID)
+
+full16$idname<-paste0(as.character(full16$id)," ", as.character(full16$name))
+full16$first3<-substr(full16$name,start=1,stop=3)
+
+full16oneper<-full16[,]
+
+full16one<-full16oneper[!(full16oneper$first3=="Opt"), ]
+full16o<-full16one[!duplicated(full16one$idname), ]
+
+f1616<-full16one[!duplicated(full16one$idname), ]
+
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP4/ccp4withzerofixations.csv")
+f16<-read.csv(text = x,stringsAsFactors = FALSE)
+
+
+
+```
+
+
+
+# 2. Descriptive plots and descriptive statistics
+
+## 2.1 DEEP histograms
+
+### 2.1.1 Beta and Delta using Qi's method
+```{r}
+ggplot(qual, aes(x=hierbeta)) + 
+  geom_density()
+
+ggplot(qual, aes(x=hierdelta)) + 
+  geom_density()
+
+```
+
+
+### 2.1.2 Beta and Delta using Dan's method
+
+```{r message=FALSE, warning=FALSE}
+ggplot(qual, aes(x=beta)) + 
+  geom_density()
+
+ggplot(qual, aes(x=annualfactor)) + 
+  geom_density()
+
+#correlations are lower (better) using Dan's method.
+cor(qual$beta, qual$annualfactor)
+cor(qual$hierbeta,qual$hierdelta)
+
+```
+
+
+
+## 2.2 Search histograms displaying skewness and reasons for using sqrt transformation
+
+The rule I've been taught for skewness (which I also pre-registered, at least for CCP1) is if skewness is between -1 and +1, the variable can be left as is. If it is outside those, run a transformation to get it within those boundaries and as close to 0 as possible. Log-transformation results in a negative skew, which in CCP1 was less than -1 and is worse than the sqrt transformation in every study; square-root transformation does better (see stats below)
+
+```{r}
+skewness(cc$numopened,na.rm=TRUE)
+skewness(cc$sqrtnumopened,na.rm=TRUE)
+skewness(cc$lognumopened,na.rm=TRUE)
+
+hist(cc$numopened,main="Untransformed Boxes Opened",xlab="Boxes Opened (untransformed)",yaxt='n')
+
+hist(cc$sqrtnumopened,main="Sqrt Transformation",xlab="Sqrt boxes opened",yaxt='n')
+
+hist(cc$lognumopened,main="Log Transformation",xlab="Log boxes opened",yaxt='n')
+
+
+```
+
+
+## 2.3 Search histograms and density plots by delay boxes condition
+```{r warning=FALSE}
+
+ggplot(cc, aes(x=sqrtnumopened, fill = condition)) + 
+  geom_density()
+
+###Search histograms as a function of condition
+hist(ccnodelay$sqrtnumopened,main="No Delay Participants",xlab="Number of Boxes opened",yaxt='n')
+hist(ccdelay$sqrtnumopened,breaks=10,main="Delay Participants",xlab="Number of Boxes opened",yaxt='n')
+
+```
+
+
+## 2.4 Choice accuracy overall, and by delayed boxes condition
+
+```{r}
+summary(f16$correct)
+
+summary(f16$correct[full$condition=="delay"],na.rm=TRUE)
+summary(f16$correct[full$condition=="nodelay"],na.rm=TRUE)
+
+```
+
+
+## 2.5 Descriptives of the new box openings measure. 
+
+**Fixations** is the number of times a given box was opened. 16 lines per participant, corresponding to the 16 boxes in the mlweb display.
+
+Note. In this new format, skewness is actually best (lowest) for the log-transformation (3rd histogram and 3rd number in the skewness summary statistics below)
+
+```{r}
+skewness(f16$fixations,na.rm=TRUE)
+
+f16$sqrtfixations<-sqrt(f16$fixations)
+skewness(f16$sqrtfixations,na.rm=TRUE)
+
+f16$logfixations<-log10(f16$fixations+1)
+skewness(f16$logfixations,na.rm=TRUE)
+
+
+hist(f16$numopened,main="Untransformed Boxes Opened",xlab="Boxes Opened (untransformed)")
+
+hist(f16$sqrtnumopened,main="Sqrt Transformation",xlab="Sqrt boxes opened")
+
+hist(f16$lognumopened,main="Log Transformation",xlab="Log boxes opened")
+
+summary(f16$fixations)
+
+```
+
+
+
+
+# 3. New Inferential Analyses
+
+## 3.1. Model below predicts number of fixations on a box from attribute of the box, beta, delta, and interactions with beta and delta. 
+
+Note. It now converges even with this complex model, thanks to the optimizer... line of code.
+
+Results: Main effects of beta and standard rate (i.e., people with low present bias search more, and people look more at the standard rate boxes than the other boxes). No significant interactions, although there is a slight tendency for people with higher delta (i.e., those who discount less look more at the "period" attribute)
+
+```{r}
+f16$hierbeta.c<-f16$hierbeta-mean(f16$hierbeta,na.rm=TRUE)
+f16$hierdelta.c<-f16$hierdelta-mean(f16$hierdelta,na.rm=TRUE)
+f16$standard.c<-f16$dummystd-.5
+f16$intro.c<-f16$dummyintro-.5
+f16$period.c<-f16$dummyperiod-.5
+f16$annualfee.c<-f16$dummyannual-.5
+
+m6<-glmer(fixations~hierbeta.c*standard.c+hierbeta.c*intro.c+hierbeta.c*period.c+hierdelta.c*standard.c+hierdelta.c*intro.c+hierdelta.c*period.c+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m6)
+```
+
+
+## 3.2: Plot of the interaction which was closest to being significant (delta x intro period, p = .056)
+
+```{r}
+#I'm not sure why this didn't work; interact_plot has worked for me in the past. Perhaps I need to update package.
+
+#library(jtools)
+
+#m9<-glmer(fixations~hierdelta*period.c+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+
+#interact_plot(m9, hierdelta, period.c)
+
+```
+
+
+## 3.3: Plot of the relationship between beta and search for each of the four attributes.
+
+```{r}
+
+f16$attbox<-as.factor(f16$attbox)
+
+m7<-glmer(fixations~hierbeta*attbox+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m7)
+
+plot(Effect(c("hierbeta", "attbox"), m7))
+
+```
+
+
+## 3.4  Plot of the relationship between delta and search for each of the four attributes.
+
+
+```{r}
+
+m8<-glmer(fixations~hierdelta*attbox+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m8)
+
+plot(Effect(c("hierdelta", "attbox"), m8))
+
+```
+
+
+
+# 4. Old inferential analyses 
+
+
+## 4.1 Present bias is associated with less search (using data that is 1 trial per line)
+
+
+```{r}
+
+#should be similar to the overall fixation results from before
+
+m1a<-lmer(sqrtnumopened~hierbeta+hierdelta+(1|ipaddress),data=f16)
+summary(m1a)
+
+m2<-lmer(logfixations~hierbeta+hierdelta+(1|ipaddress),data=f16)
+summary(m2)
+
+m3<-glmer(fixations~hierbeta+hierdelta+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m3)
+
+```
+
+
+##4.2 More present bias predicts lower accuracy
+
+```{r}
+
+m1b<-lmer(correct~hierbeta+hierdelta+(1|ipaddress),data=f16)
+summary(m1b)
+
+m1b<-glmer(correct~hierbeta+hierdelta+(1|ipaddress),family=binomial,data=f16,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m1b)
+```
+
+
+## 4.3 Mediation model: present bias-->less search-->lower accuracy  
+
+We get a significant indirect effect, as in previous studies. I'm not copying it here because it takes an hour or more to run and slows everything down.  
+  
+  
+
+# 5. Robustness
+
+## 5.1 Pre-registered robustness tests:  
+
+### 5.1.1  Exclude those who don't own credit card. Effect of beta on search remains.
+```{r}
+
+f16$owncard<-NA
+f16$owncard[f16$owncreditcard==1]<-1
+f16$owncard[f16$owncreditcard==2]<-0
+
+f16owners<-f16[!(f16$owncard==0), ]
+
+#boxes opened
+m3<-glmer(fixations~hierbeta+hierdelta+(1|ipaddress),data=f16owners,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m3)
+
+#searchtime
+m3a<-lmer(logtime~hierbeta+hierdelta+(1|ipaddress),data=f16owners)
+summary(m3a)
+
+```
+
+### 5.1.2  Exclude search time outliers (greater than 300 seconds)
+```{r}
+f16nooutliers<-f16[!(f16$searchtime>300), ]
+
+#boxes opened
+m3<-glmer(fixations~hierbeta+hierdelta+(1|ipaddress),data=f16nooutliers,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m3)
+
+#searchtime
+m3a<-lmer(logtime~hierbeta+hierdelta+(1|ipaddress),data=f16nooutliers)
+summary(m3a)
+```
+
+
+  
+## 5.2 Other robustness tests (most of which I did in CCP1)
+
+### 5.2.1  Control for financial literacy and survey completion time (no credit score measure in this study)
+```{r}
+#boxes opened
+m3<-glmer(fixations~finliteracy+hierbeta+hierdelta+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m3)
+
+#searchtime
+m3a<-lmer(logtime~hierbeta+hierdelta+(1|ipaddress),data=f16)
+summary(m3a)
+```
+
+
+### 5.2.2  Add CRT and numeracy as additional covariates (we did not measure these in CCP1)
+
+```{r}
+#boxes opened
+m3<-glmer(fixations~finliteracy+crt+numeracy+hierbeta+hierdelta+(1|ipaddress),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m3)
+
+#searchtime
+m3a<-lmer(logtime~finliteracy+crt+numeracy+hierbeta+hierdelta+(1|ipaddress),data=f16)
+summary(m3a)
+
+```
+
+
+### 5.2.3  Is the effect especially large among those who calculated?
+```{r}
+
+```
+
+
+### 5.2.4  Exclude people who don't carry a balance on their credit card
+```{r}
+
+```
+
+### 5.2.5  Exclude people who calculated
+```{r}
+
+```
+
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+idl<-read.csv("/Users/kelle/Documents/idlist_importR_ccp4.csv")
+
+
+ljcopyrr <- left_join(idl, f16)
+
+
+write.csv(ljcopyrr,file="/Users/kelle/Documents/ccp4replaceNAafterLJ_fixretrieve.csv")
+
+
+
+#ljcopyrr <- data.frame(matrix(unlist(ljcopyrr), nrow=8880, byrow=T),stringsAsFactors=FALSE)
+
+
+#replace NAs with -99 throughout
+
+#xxcopy<-ljcopy
+
+#xxcopy3<-ljcopy
+
+#xxcopy2$ipaddress[is.na(xxcopy2$ipaddress)]<-99
+
+#xxcopy2$deepitem[is.na(xxcopy2$deepitem)]<-99
+
+#xxcopy2[is.na(xxcopy2)]
+
+#xxcopy3[, 6:100][is.na(xxcopy3[, 6:100])] <- 99
+
+#xxcopy3[, 101:106][is.na(xxcopy3[, 101:106])] <- 99
+
+#xxcopy3[, 111:121][is.na(xxcopy3[, 111:121])] <- 99
+
+
+##conditional lag
+#first lag everything
+#xxlagcopy3a<-xxcopy3[,8:106]
+#xxlagcopy3b<-xxcopy3[,110:121]
+
+#xxlagcopy3<-cbind(xxlagcopy3a,xxlagcopy3b)
+
+#xxlagcopy3 %>% mutate_all(lag)
+
+#xxleadcopy3<-cbind(xxlagcopy3a,xxlagcopy3b)
+
+#dplyr::mutate_all(xxleadcopy3, funs(lead))
+
+
+#then, set column to first lag conditional upon value being 99 (i.e., missing and needing the lag)
+
+
+#zas<-xxcopy3
+
+#zas$new<-zas$shrunkenbeta[-nrow(zas)]
+
+#dat$X3 <- c(0L, dat$ID[-1]  <= dat$ID[-nrow(dat)]) 
+
+
+#xxcopy3$shrunkenbeta[(xxcopy3$name!="1-Apr"&xxcopy3$shrunkenbeta==99)] <-xxlagcopy3$shrunkenbeta
+
+#xxcopy3$rownumbs<-rownames(xxcopy3)
+
+#xxlagcopy3$rownumbs<-rownames(xxlagcopy3)
+
+#xxleadcopy3$rownumbs<-rownames(xxleadcopy3)
+
+
+
+#for (i in xxcopy3$rownumbs[xxcopy3$name!="1-Apr"&xxcopy3$shrunkenbeta==99]){
+#  xxcopy3$shrunkenbeta[i]<-xxlagcopy3$shrunkenbeta[i]
+#}
+
+
+#ljxxcopy %>% mutate_all(lag)
+
+#xxcopy2[is.na(xxcopy2[,5:121])]<-99
+
+#xxcopy2 %>% 
+#  mutate(newcol = ifelse(expname=="1-Apr", lag(first3), lead(first3)))
+  
+#ljxxcopy[,5:121]<-ljcopy[,5:121]
+
+#ljcopyrr$first3[is.na(ljcopyrr)] <- -99
+
+#then, do the lag code for each columns
+
+#ljcopyrr$first3[(ljcopyrr$name!="1-Apr"&ljcopyrr$first3==-99)] <-c(ljcopyxx$first3[-1], NA)
+
+
+
+#ljcopyxx$first3[ljcopyxx$name!="1-Apr"&ljcopyxx$first3=="NA")] <-c(ljcopyxx$first3[-1], NA)
+
+#ljcopyxx$first3[ljcopyxx$name=="1-Apr"] <- c(ljcopyxx$MSdiff[+1], NA)
+
+
+
+#ljcopylag<-lag(ljcopy, 1)
+
+#lag(idl, 1)
+
+#ljjcopylag %>% mutate_all(lag)
+
+
+
+#comb<-rbind.fill(idl[c("id", "fixzero")], f16[c("id", "name", "idname", "fixations", "ipaddress")])
+
+#for (i in idl$idname){
+#  idl$fixations[idl$idname==i]<-f16$fixations[f16$idname==i]
+#}
+
+
+#combined <- rbind.fill(mtcars[c("mpg", "wt")], #mtcars[c("wt", "cyl")])
+
+```
+
