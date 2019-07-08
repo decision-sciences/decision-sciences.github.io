@@ -1,0 +1,381 @@
+---
+title: "CCP 1 analysis"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_depth: '4'
+---
+## 1. Summary
+
+Present bias predicts less search and lower accuracy.  
+
+The effect of present bias on search is especially large for the "standard APR" attribute (significant interaction), but is positive for all four attributes.  
+
+There is also a significant delta x introductory period interaction, just as in CCP4 (the effect of delta on search is especially large for introductory period).  
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+######Script for 16 rows per person for possibly more powerful analyses
+library(dplyr)
+library(effects)
+library(lme4)
+library(lmerTest)
+library(e1071)
+library(ggplot2)
+library(RCurl)
+
+# Load data from github
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/ChoiceCC.csv")
+cc_o1<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/ChoiceCC_o2.csv")
+cc_o2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/ChoiceCC_o3.csv")
+cc_o3<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/ChoiceCC_o4.csv")
+cc_o4<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/trial2.csv")
+t2_cc_o1<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/trial2_o2.csv")
+t2_cc_o2<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/trial2_o3.csv")
+t2_cc_o3<-read.csv(text = x,stringsAsFactors = FALSE)
+
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/trial2_o4.csv")
+t2_cc_o4<-read.csv(text = x,stringsAsFactors = FALSE)
+
+####bind files into one big R csv file.
+cc<-rbind(cc_o1, cc_o2, cc_o3, cc_o4, t2_cc_o1, t2_cc_o2, t2_cc_o3, t2_cc_o4)
+
+
+
+##remove boxes of <200 ms
+#converts to difference in ms
+cc$MSdiff <- ave(cc$time, cc$id, FUN=function(x) c(0, diff(x)))
+
+
+
+#so that we can get mouseovers removed as well (i.e., when mouseout--value of next row--is less than 200)
+cc$nextdiff <- c(cc$MSdiff[-1], NA)
+
+
+cc<-cc[!(cc$event=="mouseout"&cc$MSdiff<200),]
+cc<-cc[!(cc$event=="mouseover"&cc$nextdiff<200),]
+
+
+
+##calculate total time each person took per trial
+cc$maxes<-NA
+maxes <- with(cc, tapply(time, id, max))
+cc$maxes <- maxes[match(cc$id,names(maxes))]
+
+
+##calculate total boxes opened
+cc$newtab<-NA
+
+newtab<-data.frame(table(cc$id[cc$event=="mouseover"]))
+colnames(newtab)[1]<-"id"
+colnames(newtab)[2]<-"numopened"
+
+cc$newtab <- newtab[match(cc$id,newtab$id), ]
+
+#make timevar with row (linenumb) identifyer
+cc$linenumb <- with(cc, ave(as.character(id), id, FUN = seq_along))
+
+
+# search time
+cc$searchtime<-cc$maxes/1000
+
+#sqrt transformation, which reduces skew
+cc$numopened<-cc$newtab[,2]
+cc$sqrtnumopened<-sqrt(cc$numopened)
+
+#sqrt transformation, which reduces skew
+cc$sqrttime<-sqrt(cc$searchtime)
+
+
+##add variable whether they got it correct
+cc$correct<-NA
+cc$correct<-0
+
+
+cc$correct[cc$expname=="ChoiceCC"&cc$choice=="OptionA-Gloss"]<-1
+cc$correct[cc$expname=="ChoiceCC_o2"&cc$choice=="OptionA-Anywhere"]<-1
+cc$correct[cc$expname=="ChoiceCC_o3"&cc$choice=="OptionA-Ascent"]<-1
+cc$correct[cc$expname=="ChoiceCC_o4"&cc$choice=="OptionA-Journey"]<-1
+
+cc$correct[cc$expname=="ChoiceCC_trial2"&cc$choice=="OptionC-Sequin"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_o2"&cc$choice=="OptionC-Polaris"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_o3"&cc$choice=="OptionC-Midnight"]<-1
+cc$correct[cc$expname=="ChoiceCC_trial2_o4"&cc$choice=="OptionC-Surge"]<-1
+
+# More cleaning 
+
+###Adding the time preference and Qualtrics data to the seach data
+
+ccwide<-read.csv("/Users/kelle/Documents/credit card wave short, merged.csv")
+
+
+##DOUBLE CHECK THIS; may have changed when I changed the structure of this script.
+#removes the ones who did not finish the study; 
+
+qualips<-unique(ccwide$V6)
+
+cc2<-subset(cc, (cc$ip %in% ccwide$V6))
+
+cc<-cc2
+
+#4 IP addresses are in qualtrics but not CC; which ones? 207.244.77.46; 198.15.118.142; 108.170.8.155; 104.236.74.212
+fourmissing<-subset(qualips, !(qualips %in% c(cc$ip)))
+
+ccwide<-subset(ccwide, !(ccwide$V6 %in% c(fourmissing)))
+
+
+
+ccwide$annfactorold<-ccwide$annualfactor
+ccwide$delta<-ccwide$new_annualfactor
+
+ccwi<-ccwide[,1:400]
+
+full<-merge(cc, ccwi, by.x="ip", by.y="V6")
+
+full$hierbeta<-full$new_beta
+
+
+
+#remove everything except fixations in the 16 boxes
+#remove the mouseover, leaving just the mouseouts
+full<-full[!(full$event=="mouseover"),]
+full<-full[!(full$event=="onload"),]
+full<-full[!(full$event=="subject"),]
+full<-full[!(full$event=="order"),]
+full<-full[!(full$event=="events"),]
+full<-full[!(full$event=="onclick"),]
+full<-full[!(full$event=="submit"),]
+
+
+
+
+##count the mouseouts in each box
+full16<-full %>% group_by(id.x, name) %>% mutate(fixations = n())
+
+unique(full16$name)
+
+#down to just 16 per trial (32 per ID)
+
+full16$idname<-paste0(as.character(full16$id.x)," ", as.character(full16$name))
+full16$first3<-substr(full16$name,start=1,stop=3)
+
+full16oneper<-full16[,]
+
+full16one<-full16oneper[!(full16oneper$first3=="Opt"), ]
+full16o<-full16one[!duplicated(full16one$idname), ]
+
+f16<-full16one[!duplicated(full16one$idname), ]
+
+
+#problem: the above method results in 0 fixation things getting removed; ideally we would have 16 lines per person (one for each box), including boxes that were looked at 0 times.
+
+f16$f3<-NA
+f16$f3[f16$first3=="Ann"]<-"Ann"
+f16$f3[f16$first3=="iAP"]<-"iAP"
+f16$f3[f16$first3=="iPe"]<-"iPe"
+f16$f3[f16$first3=="1-A"|f16$first3=="2-A"|f16$first3=="3-A"|f16$first3=="4-A"]<-"APR"
+
+f16$f3<-as.factor(f16$f3)
+
+f16$dummyannual<-NA
+f16$dummyannual<--.5
+f16$dummyannual[f16$first3=="Ann"]<-.5
+
+f16$dummyintro<-NA
+f16$dummyintro<--.5
+f16$dummyintro[f16$first3=="iAP"]<-.5
+
+f16$dummyperiod<-NA
+f16$dummyperiod<--.5
+f16$dummyperiod[f16$first3=="iPe"]<-.5
+
+f16$dummystd<-NA
+f16$dummystd<--.5
+f16$dummystd[f16$first3=="1-A"|f16$first3=="2-A"|f16$first3=="3-A"|f16$first3=="4-A"]<-.5
+
+f16$first3[f16$first3=="1-A"|f16$first3=="2-A"|f16$first3=="3-A"|f16$first3=="4-A"]<-"APR"
+
+```
+## 2. DEEP histograms
+
+### 2.1. Beta using Qi's method
+```{r}
+ggplot(f16, aes(x = hierbeta)) + geom_density()
+ggplot(f16, aes(x = new_annualfactor)) + geom_density()
+cor.test(f16$hierbeta,f16$new_annualfactor)
+```
+
+### 2.2. Beta and delta using Dan's method 
+```{r}
+ggplot(f16, aes(x = beta)) + geom_density()
+ggplot(f16, aes(x = annualfactor)) + geom_density()
+cor.test(f16$beta,f16$annualfactor)
+```
+
+## 3. Boxes opened and timing summary statistics 
+
+### 3.1. Summaries of boxes opened and time searching
+
+```{r}
+#Boxes opened (raw count)
+summary(cc$numopened)
+
+#Boxes opened (transformed to reduce skewness)
+summary(cc$sqrtnumopened)
+
+#Time spent searching per trial (raw count)
+summary(cc$searchtime)
+
+#Time spent searching per trial (transformed to reduce skewness)
+summary(cc$sqrttime)
+
+
+```
+
+### 3.2. Histograms 
+
+Histograms of raw and transformed number of boxes opened (first two) and time spent searching (second two).  
+
+```{r}
+#Hist of raw boxes opened
+hist(cc$numopened,main="Boxes opened", xlab = "Boxes opened (raw)",yaxt='n')
+
+#Transformed boxes opened
+hist(cc$sqrtnumopened, main="Transformed boxes opened", xlab = "Sqrt boxes opened")
+
+#Hist raw time searching
+hist(cc$searchtime, main="Search time", xlab = "Time searching (raw)",yaxt='n')
+
+# Histogram transformed time searching
+hist(cc$sqrttime, main="Transformed search time", xlab = "Sqrt time searching",yaxt='n')
+```
+
+### 3.3 Skewness of variables
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+f16$lognumopened<-log10(f16$numopened+1)
+
+skewness(f16$sqrtnumopened)
+skewness(f16$numopened)
+skewness(f16$lognumopened)
+
+f16$logtime<-log10(f16$searchtime+1)
+
+skewness(f16$sqrttime)
+skewness(f16$searchtime)
+skewness(f16$logtime)
+
+skewness(f16$fixations,na.rm=TRUE)
+
+f16$sqrtfixations<-sqrt(f16$fixations)
+skewness(f16$sqrtfixations,na.rm=TRUE)
+
+f16$logfixations<-log10(f16$fixations+1)
+skewness(f16$logfixations,na.rm=TRUE)
+```
+
+## 4. Inferential tests: Old format 
+
+
+### 4.1. Present bias predicts less search 
+
+```{r}
+m1<-lmer(sqrtnumopened~hierbeta+delta+(1|ip),data=f16)
+summary(m1)
+
+m1a<-lmer(logtime~hierbeta+delta+(1|ip),data=f16)
+summary(m1a)
+```
+
+
+### 4.2. Present bias predicts lower accuracy
+
+Summaries of coefficients for mixed-effects models below.   
+```{r}
+m1b<-glmer(correct~hierbeta+delta+(1|ip),data=f16,family=binomial)
+summary(m1b)
+```
+
+
+## 5. New inferential analyses: Search x Attribute
+
+### 5.1. Mixed Model(s)
+
+The first model (m6) has the attribute box type coded with contrast codes centered at 0, while the second (m7) has attribute box type coded as a factor with 4 levels.  
+
+```{r}
+f16$hierbeta.c<-f16$hierbeta-mean(f16$hierbeta,na.rm=TRUE)
+f16$delta.c<-f16$delta-mean(f16$delta,na.rm=TRUE) #changed "hierdelta" to "delta" --Nate 6/19/2019
+#dummys already centered so removed the "-.5" from 4 lines below -- Nate 6/19/2019 
+f16$standard.c<-f16$dummystd
+f16$intro.c<-f16$dummyintro
+f16$period.c<-f16$dummyperiod
+f16$annualfee.c<-f16$dummyannual
+
+# Remade f16$attbox based on f16$f3 which is based on f16$first3
+f16$attbox<-NA
+f16$attbox[f16$f3=="APR"]<-"APR"
+f16$attbox[f16$f3=="Ann"]<-"AnnualFee"
+f16$attbox[f16$f3=="iAP"]<-"IntroRate"
+f16$attbox[f16$f3=="iPe"]<-"IntroPeriod"
+
+f16$attbox<-as.factor(f16$attbox)
+
+## m6 written with attbox coded as a series of contrast codes centered at 0
+m6<-glmer(fixations~hierbeta.c*standard.c+hierbeta.c*period.c+hierbeta.c*intro.c+delta.c*standard.c+delta.c*period.c+delta.c*intro.c+(1|ip),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m6)
+
+## rewrote model 6 with attbox as a factor.  Coefficients for beta and delta are different, but all interactions are the same.  
+m7 <- glmer(fixations ~ hierbeta.c*attbox + delta.c*attbox +(1|ip), data = f16, family = poisson, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5)))
+summary(m7)
+
+
+
+```
+
+### 5.2. Relationship between beta and search for each attribute 
+
+Beta predicts more search for all four attributes, but especially for APR.
+
+```{r}
+plot(Effect(c("hierbeta.c", "attbox"), m7))
+```
+
+### 5.3. Relationship between delta and search for each attribute 
+
+Plotting that delta x introductory period interaction.
+
+The simple effect of delta on search when attribute=introductory period actually isn't significant though. But the interaction is.
+
+```{r}
+plot(Effect(c("delta.c", "attbox"), m7))
+
+f16$dummystd<-f16$dummystd+.5
+f16$dummyannual<-f16$dummyannual+.5
+f16$dummyintro<-f16$dummyintro+.5
+f16$dummyperiod<-f16$dummyperiod+.5
+
+#check whether delta significantly increases search 
+#that is, the simple effect of delta when attribute type is intro period (look at "delta.c" line in the m9 output for that simple effect)
+m9<-glmer(fixations~delta.c*dummystd+delta.c*dummyannual+delta.c*dummyintro+(1|ip),data=f16,family=poisson,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m9)
+
+```
+

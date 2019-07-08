@@ -22,7 +22,7 @@ library(RCurl)
 
 
 #import raw mlweb data
-x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP1/ChoiceCC_o2.csv")
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP5/choiceCCall8LizBEDM.csv")
 cc<-read.csv(text = x)
 
 
@@ -151,7 +151,8 @@ cc$correct[cc$expname=="ChoiceCC_trial2_o4"&cc$choice=="OptionC-Surge"]<-1
 
 #old file, had Qualtrics matched with mouselab, but only 2 lines per person; qual<-read.csv("/Users/kelle/Documents/matching mouselab and qualtrics liz class study.csv")
 
-qual<-read.csv("C:/Users/np2730/Desktop/Work Stuff/cc_study5_data/qualtrics liz class study.csv")
+x <- getURL("https://raw.githubusercontent.com/decision-sciences/decision-sciences.github.io/master/CCP%20data/CCP5/qualtrics%20liz%20class%20study.csv")
+qual<-read.csv(text = x)
 
 qual$hierbeta<-qual$new_beta
 qual$hierdelta<-qual$new_delta
