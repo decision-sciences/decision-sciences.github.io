@@ -296,8 +296,8 @@ div.tocify {
 
 <div id="summary-of-main-findings" class="section level1">
 <h1>1. Summary of main findings</h1>
-<div id="age-education-financial-experience-including-a-new-measure-whether-or-not-they-make-most-of-households-financial-decisions-and-investment-knowledge-i-consider-myself-a-sophisticated-investor-consistently-moderate-loss-aversion" class="section level2">
-<h2>1.1 Age, education, financial experience (including a new measure: whether or not they make most of household’s financial decisions), and investment knowledge (“I consider myself a sophisticated investor”) consistently moderate loss aversion</h2>
+<div id="age-education-financial-experience-with-either-experience-measure-and-investment-knowledge-i-consider-myself-a-sophisticated-investor-moderate-loss-aversion" class="section level2">
+<h2>1.1 Age, education, financial experience (with either experience measure), and investment knowledge (“I consider myself a sophisticated investor”) moderate loss aversion</h2>
 </div>
 <div id="the-effect-of-experience-on-lower-loss-aversion-is-present-with-another-measure-of-financial-experience-which-seems-less-vulnerable-to-reviewers-critiques-whether-or-not-the-respondent-makes-most-of-the-financial-decisions-in-household" class="section level2">
 <h2>1.2. The effect of experience on lower loss aversion is present with another measure of financial experience, which seems less vulnerable to reviewers’ critiques (whether or not the respondent makes most of the financial decisions in household)</h2>
@@ -376,10 +376,12 @@ summary(m2a)</code></pre>
 <h1>3. Key models for JCP resubmission</h1>
 <p><strong>Changes:</strong></p>
 <ol style="list-style-type: decimal">
-<li><p>Standardize all measures so we can also report standardized effect sizes (Cohen’s d)</p></li>
+<li><p>Standardize all measures so we can also report standardized effect sizes (Cohen’s d and 95% CI)</p></li>
 <li><p>Added a measure of financial/investment knowledge: “I consider myself a sophisticated investor”</p></li>
 <li><p>Added a measure of financial experience (called handlefinances): whether or not they handle most of their household’s finances (1 if yes, 0 if other partner handles most, 0.5 if both handle about equally)</p></li>
 </ol>
+<div id="main-model" class="section level2">
+<h2>3.1. Main model</h2>
 <pre class="r"><code>#standardizing variables
 MM12$age_st&lt;-scale(MM12$age)
 MM12$invest_know_st&lt;-scale(MM12$invest_know)
@@ -470,8 +472,9 @@ summary(m2)</code></pre>
 ##   (4920 observations deleted due to missingness)
 ## Multiple R-squared:  0.1163, Adjusted R-squared:  0.1155 
 ## F-statistic: 148.7 on 11 and 12431 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
 <div id="simple-effects-in-each-individual-sbi-wave" class="section level2">
-<h2>3.1 Simple effects in each individual SBI wave</h2>
+<h2>3.2 Simple effects in each individual SBI wave</h2>
 <p>First model is 2010</p>
 <p>Second is 2012</p>
 <p>Third is 2014</p>
@@ -582,9 +585,9 @@ summary(m1s4)</code></pre>
 ## F-statistic: 81.98 on 5 and 3685 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 <div id="other-robustness-tests-using-new-models" class="section level2">
-<h2>3.2 Other robustness tests using new models</h2>
+<h2>3.3 Other robustness tests using new models</h2>
 <div id="controlling-for-risk-aversion-item" class="section level3">
-<h3>3.2.1 Controlling for risk aversion item</h3>
+<h3>3.3.1 Controlling for risk aversion item</h3>
 <pre class="r"><code>#Risk aversion (prefer very low risk/very low return to very high risk/high return, Likert)
 MM12$risk&lt;-NA
 MM12$lowrisk&lt;-NA
@@ -638,7 +641,7 @@ summary(m1r)</code></pre>
 ## y2014              -0.05865063  0.03177202</code></pre>
 </div>
 <div id="even-among-millionaires" class="section level3">
-<h3>3.2.2 Even among Millionaires</h3>
+<h3>3.3.2 Even among Millionaires</h3>
 <pre class="r"><code>#among those with 1 million or more in net worth
 
 MM12mil&lt;-MM12[(MM12$NET_6&gt;999999), ]
@@ -686,7 +689,7 @@ summary(m1m)</code></pre>
 ## y2014              -0.09307241  0.065784139</code></pre>
 </div>
 <div id="removing-sbi-survey-weights-so-each-respondent-gets-equal-weight" class="section level3">
-<h3>3.2.3 Removing SBI survey weights so each respondent gets equal weight</h3>
+<h3>3.3.3 Removing SBI survey weights so each respondent gets equal weight</h3>
 <pre class="r"><code>m1w&lt;-lm(lambda_st~age_st+invest_know_st+handlefinances_st+log10experience_st+education_st+y2010+y2012+y2014,data=MM12)
 summary(m1w)</code></pre>
 <pre><code>## 
@@ -730,7 +733,7 @@ summary(m1w)</code></pre>
 ## y2014              -0.107181804 -0.01856013</code></pre>
 </div>
 <div id="more-liberal-estimates-of-lambda" class="section level3">
-<h3>3.2.4 More liberal estimates of lambda</h3>
+<h3>3.3.4 More liberal estimates of lambda</h3>
 <p>(lambda as midpoint of lambda values consistent with their answers rather than lowest answer consistent with their answers)</p>
 <pre class="r"><code>m1l&lt;-lm(lambdamid_st~age_st+invest_know_st+handlefinances_st+log10experience_st+education_st+y2010+y2012+y2014,data=MM12,weights=WGT)
 summary(m1l)</code></pre>
@@ -775,64 +778,64 @@ summary(m1l)</code></pre>
 ## y2014              -0.084695162  0.008527607</code></pre>
 </div>
 <div id="adding-more-covariates-reviewers-suggested-using-more-covariates-though-they-didnt-note-which-ones" class="section level3">
-<h3>3.2.5 Adding more covariates (reviewers suggested using more covariates, though they didn’t note which ones)</h3>
-<p>I only have “retired” and race so far, but plan to add several more demographics and more pieces of financial information besides wealth and income. Probably need to add several things that would be correlated with age (e.g., retirement savings, home ownership, having kids, etc)</p>
-<pre class="r"><code>#More demographics: 
-m1d&lt;-lm(lambda_st~RETIRED+hispanic+black+asian+other+age_st+invest_know_st+handlefinances_st+log10experience_st+education_st+y2010+y2012+y2014,data=MM12,weights=WGT)
+<h3>3.3.5 Adding more covariates (reviewers suggested using more covariates, though they didn’t note which ones)</h3>
+<p>I only have “retired” so far, but plan to add several more demographics and more pieces of financial information besides wealth and income. Probably need to add several things that would be correlated with age (e.g., retirement savings, home ownership, having kids, etc)</p>
+<pre class="r"><code>#Add model with more financial information variables as covariates
+
+#Add model with more demographics as covariates: 
+m1d&lt;-lm(lambda_st~RETIRED+log10income_st+log10wealth_st+gender_st+age_st+invest_know_st+handlefinances_st+log10experience_st+education_st+y2010+y2012+y2014,data=MM12,weights=WGT)
 summary(m1d)</code></pre>
 <pre><code>## 
 ## Call:
-## lm(formula = lambda_st ~ RETIRED + hispanic + black + asian + 
-##     other + age_st + invest_know_st + handlefinances_st + log10experience_st + 
-##     education_st + y2010 + y2012 + y2014, data = MM12, weights = WGT)
+## lm(formula = lambda_st ~ RETIRED + log10income_st + log10wealth_st + 
+##     gender_st + age_st + invest_know_st + handlefinances_st + 
+##     log10experience_st + education_st + y2010 + y2012 + y2014, 
+##     data = MM12, weights = WGT)
 ## 
 ## Weighted Residuals:
 ##     Min      1Q  Median      3Q     Max 
-## -25.733  -2.749  -1.249   0.557  36.446 
+## -26.351  -2.502  -1.104   0.672  37.229 
 ## 
-## Coefficients: (4 not defined because of singularities)
+## Coefficients:
 ##                     Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)         0.050195   0.017237   2.912  0.00360 ** 
-## RETIRED             0.050763   0.037080   1.369  0.17102    
-## hispanic                  NA         NA      NA       NA    
-## black                     NA         NA      NA       NA    
-## asian                     NA         NA      NA       NA    
-## other                     NA         NA      NA       NA    
-## age_st              0.145983   0.008393  17.393  &lt; 2e-16 ***
-## invest_know_st     -0.044007   0.009169  -4.800 1.61e-06 ***
-## handlefinances_st  -0.035754   0.009243  -3.868  0.00011 ***
-## log10experience_st -0.160808   0.008351 -19.255  &lt; 2e-16 ***
-## education_st       -0.147825   0.009866 -14.983  &lt; 2e-16 ***
-## y2010              -0.062786   0.025778  -2.436  0.01488 *  
-## y2012               0.034436   0.025307   1.361  0.17362    
-## y2014              -0.033011   0.023948  -1.378  0.16808    
+## (Intercept)         0.060407   0.017536   3.445 0.000573 ***
+## RETIRED             0.099651   0.037488   2.658 0.007866 ** 
+## log10income_st     -0.095552   0.011897  -8.032 1.05e-15 ***
+## log10wealth_st     -0.130100   0.010635 -12.233  &lt; 2e-16 ***
+## gender_st           0.021766   0.009075   2.399 0.016475 *  
+## age_st              0.191407   0.009295  20.592  &lt; 2e-16 ***
+## invest_know_st     -0.020626   0.009437  -2.186 0.028862 *  
+## handlefinances_st  -0.071858   0.009688  -7.417 1.28e-13 ***
+## log10experience_st -0.114113   0.008866 -12.872  &lt; 2e-16 ***
+## education_st       -0.058442   0.011056  -5.286 1.27e-07 ***
+## y2010              -0.120796   0.026743  -4.517 6.33e-06 ***
+## y2012              -0.014978   0.026082  -0.574 0.565791    
+## y2014              -0.059189   0.024422  -2.424 0.015383 *  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 5.447 on 13296 degrees of freedom
-##   (4057 observations deleted due to missingness)
-## Multiple R-squared:  0.08669,    Adjusted R-squared:  0.08607 
-## F-statistic: 140.2 on 9 and 13296 DF,  p-value: &lt; 2.2e-16</code></pre>
+## Residual standard error: 5.3 on 12430 degrees of freedom
+##   (4920 observations deleted due to missingness)
+## Multiple R-squared:  0.1168, Adjusted R-squared:  0.1159 
+## F-statistic:   137 on 12 and 12430 DF,  p-value: &lt; 2.2e-16</code></pre>
 <pre class="r"><code>confint(m1d,method='Wald')</code></pre>
-<pre><code>##                          2.5 %      97.5 %
-## (Intercept)         0.01640910  0.08398185
-## RETIRED            -0.02191913  0.12344514
-## hispanic                    NA          NA
-## black                       NA          NA
-## asian                       NA          NA
-## other                       NA          NA
-## age_st              0.12953088  0.16243449
-## invest_know_st     -0.06197976 -0.02603455
-## handlefinances_st  -0.05387255 -0.01763591
-## log10experience_st -0.17717772 -0.14443811
-## education_st       -0.16716382 -0.12848638
-## y2010              -0.11331531 -0.01225638
-## y2012              -0.01516933  0.08404067
-## y2014              -0.07995192  0.01392964</code></pre>
-<pre class="r"><code>#More financial information</code></pre>
+<pre><code>##                           2.5 %       97.5 %
+## (Intercept)         0.026033970  0.094779970
+## RETIRED             0.026167765  0.173133679
+## log10income_st     -0.118871939 -0.072232822
+## log10wealth_st     -0.150946649 -0.109253970
+## gender_st           0.003978216  0.039554135
+## age_st              0.173187274  0.209626689
+## invest_know_st     -0.039124024 -0.002127778
+## handlefinances_st  -0.090849093 -0.052867381
+## log10experience_st -0.131490946 -0.096735250
+## education_st       -0.080113212 -0.036770760
+## y2010              -0.173216225 -0.068376772
+## y2012              -0.066102689  0.036146263
+## y2014              -0.107059869 -0.011317750</code></pre>
 </div>
 <div id="imputing-values-for-people-with-multiple-switch-points" class="section level3">
-<h3>3.2.6 Imputing values for people with multiple switch points</h3>
+<h3>3.3.6 Imputing values for people with multiple switch points</h3>
 <p>I still need to add the new predictors and standardize the predictors for these models.</p>
 <pre class="r"><code>imputeMM12&lt;-read.csv(&quot;/Users/kelle/Documents/MM12_imputing_robustness.csv&quot;)
 
@@ -949,7 +952,7 @@ summary(m1z)</code></pre>
 </div>
 </div>
 <div id="criterion-validity-section-does-loss-aversion-predict-important-behaviors-ideally-even-controlling-for-risk-aversion" class="section level2">
-<h2>3.3 Criterion validity section (does loss aversion predict important behaviors, ideally even controlling for risk aversion?)</h2>
+<h2>3.4 Criterion validity section (does loss aversion predict important behaviors, ideally even controlling for risk aversion?)</h2>
 <p>Yes, it predicts higher proportion of assets in bonds and savings. It is not associated with proportion in stocks.</p>
 <p>Lower lambda does predict making more stock trades per year, although this one becomes non-significant once we control for risk aversion.</p>
 <p>Lower lambda predicts more total liabilities/loans</p>
