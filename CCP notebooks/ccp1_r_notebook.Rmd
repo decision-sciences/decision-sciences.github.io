@@ -20,7 +20,7 @@ There is also a significant delta x introductory period interaction, just as in 
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
-######Script for 16 rows per person for possibly more powerful analyses
+######Script for 16 rows per person for possibly more powerful analyses (t)
 library(dplyr)
 library(effects)
 library(lme4)
