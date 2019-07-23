@@ -370,30 +370,30 @@ summary(m1)</code></pre>
 ## EDUC        -0.393 -0.130 -0.089  0.040
 ## convergence code: 0
 ## singular fit</code></pre>
-<pre class="r"><code>m2 &lt;- lm(FEHR_LAMDA ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC,data=aus)
+<pre class="r"><code>m2 &lt;- lm(fehrlambda ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC,data=aus)
 summary(m2)</code></pre>
 <pre><code>## 
 ## Call:
-## lm(formula = FEHR_LAMDA ~ AGE + CARUSE + CAR_KNOWLEDGE + EDUC, 
+## lm(formula = fehrlambda ~ AGE + CARUSE + CAR_KNOWLEDGE + EDUC, 
 ##     data = aus)
 ## 
 ## Residuals:
 ##      Min       1Q   Median       3Q      Max 
-## -1.16750 -0.39872 -0.08566  0.22023  1.82595 
+## -1.10289 -0.24029 -0.02286  0.23953  1.13297 
 ## 
 ## Coefficients:
 ##               Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)    2.23222    0.16640  13.415  &lt; 2e-16 ***
-## AGE            0.05706    0.02496   2.286   0.0228 *  
-## CARUSE        -0.13894    0.03124  -4.447 1.16e-05 ***
-## CAR_KNOWLEDGE -0.09028    0.02279  -3.961 9.03e-05 ***
-## EDUC          -0.10338    0.04678  -2.210   0.0277 *  
+## (Intercept)    1.64980    0.11403  14.468  &lt; 2e-16 ***
+## AGE            0.04897    0.01711   2.863  0.00445 ** 
+## CARUSE        -0.10392    0.02141  -4.854 1.82e-06 ***
+## CAR_KNOWLEDGE -0.07538    0.01562  -4.826 2.08e-06 ***
+## EDUC          -0.06749    0.03206  -2.105  0.03596 *  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 0.5409 on 355 degrees of freedom
-## Multiple R-squared:  0.2552, Adjusted R-squared:  0.2468 
-## F-statistic: 30.41 on 4 and 355 DF,  p-value: &lt; 2.2e-16</code></pre>
+## Residual standard error: 0.3707 on 355 degrees of freedom
+## Multiple R-squared:  0.3156, Adjusted R-squared:  0.3079 
+## F-statistic: 40.92 on 4 and 355 DF,  p-value: &lt; 2.2e-16</code></pre>
 <pre class="r"><code>m3 &lt;- lm(CALCLAMBDAMOD ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC,data=aus)
 summary(m3)</code></pre>
 <pre><code>## 
@@ -466,59 +466,210 @@ summary(m3)</code></pre>
 ## convergence code: 0
 ## singular fit</code></pre>
 </div>
+<div id="different-way-of-analyzing-this-interaction-by-same-vs.different-attribute" class="section level2">
+<h2>3.2.1 Different way of analyzing this: interaction by same vs. different attribute</h2>
+<pre class="r"><code>aul$dummysame&lt;-aul$same+.5
+aul$dummydifferent&lt;-(aul$same-.5)*-1
+
+aul$attributeknowledge_C&lt;-aul$attributeknowledge-mean(aul$attributeknowledge,na.rm=TRUE)
+
+m1b &lt;- lmer(attlambda_extralong ~ attributeknowledge_C*dummydifferent+AGE+EDUC+CARUSE+CAR_KNOWLEDGE+(1|RESPONDE),data=aul,control=lmerControl(optimizer=&quot;bobyqa&quot;,optCtrl=list(maxfun=2e5)))
+summary(m1b)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: attlambda_extralong ~ attributeknowledge_C * dummydifferent +  
+##     AGE + EDUC + CARUSE + CAR_KNOWLEDGE + (1 | RESPONDE)
+##    Data: aul
+## Control: lmerControl(optimizer = &quot;bobyqa&quot;, optCtrl = list(maxfun = 2e+05))
+## 
+## REML criterion at convergence: 11353.3
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.4006 -0.6061 -0.1480  0.4266  6.3220 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  RESPONDE (Intercept) 0.04709  0.2170  
+##  Residual             0.38971  0.6243  
+## Number of obs: 5760, groups:  RESPONDE, 360
+## 
+## Fixed effects:
+##                                       Estimate Std. Error         df
+## (Intercept)                          1.946e+00  8.375e-02  3.760e+02
+## attributeknowledge_C                -1.592e-01  9.145e-03  5.585e+03
+## dummydifferent                      -5.023e-16  1.900e-02  5.392e+03
+## AGE                                  7.580e-02  1.235e-02  3.517e+02
+## EDUC                                 6.405e-03  2.312e-02  3.501e+02
+## CARUSE                              -5.631e-02  1.550e-02  3.548e+02
+## CAR_KNOWLEDGE                       -5.506e-02  1.133e-02  3.576e+02
+## attributeknowledge_C:dummydifferent  2.008e-01  1.017e-02  5.392e+03
+##                                     t value Pr(&gt;|t|)    
+## (Intercept)                          23.238  &lt; 2e-16 ***
+## attributeknowledge_C                -17.410  &lt; 2e-16 ***
+## dummydifferent                        0.000 1.000000    
+## AGE                                   6.137 2.27e-09 ***
+## EDUC                                  0.277 0.781922    
+## CARUSE                               -3.634 0.000321 ***
+## CAR_KNOWLEDGE                        -4.860 1.76e-06 ***
+## attributeknowledge_C:dummydifferent  19.751  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) attr_C dmmydf AGE    EDUC   CARUSE CAR_KN
+## attrbtknw_C  0.046                                          
+## dummydffrnt -0.170  0.000                                   
+## AGE         -0.677  0.029  0.000                            
+## EDUC        -0.387 -0.008  0.000 -0.130                     
+## CARUSE      -0.408 -0.047  0.000  0.164 -0.087              
+## CAR_KNOWLED -0.334 -0.059  0.000  0.265  0.041 -0.497       
+## attrbtkn_C:  0.000 -0.834  0.000  0.000  0.000  0.000  0.000</code></pre>
+</div>
+<div id="simple-effects-tests" class="section level2">
+<h2>3.2.2 Simple-effects tests</h2>
+<p>(effect of attribute knowledge on lambda when looking at knowledge of that same attribute=same vs. when looking at knowledge of a different attribute)</p>
+<p>Effect of same attribute knowledge: (simple effect is in the att knowledge line: b = -.168)</p>
+<pre class="r"><code>aul$dummysame&lt;-aul$same+.5
+aul$dummydifferent&lt;-(aul$same-.5)*-1
+
+m1b &lt;- lmer(attlambda_extralong ~ attributeknowledge*dummydifferent+(1|RESPONDE),data=aul)
+summary(m1b)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: attlambda_extralong ~ attributeknowledge * dummydifferent + (1 |  
+##     RESPONDE)
+##    Data: aul
+## 
+## REML criterion at convergence: 11485.9
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.6010 -0.5979 -0.1372  0.4409  6.1906 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  RESPONDE (Intercept) 0.08325  0.2885  
+##  Residual             0.39030  0.6247  
+## Number of obs: 5760, groups:  RESPONDE, 360
+## 
+## Fixed effects:
+##                                     Estimate Std. Error         df t value
+## (Intercept)                        2.478e+00  4.109e-02  4.360e+03   60.32
+## attributeknowledge                -1.679e-01  9.126e-03  5.617e+03  -18.40
+## dummydifferent                    -7.578e-01  4.285e-02  5.376e+03  -17.69
+## attributeknowledge:dummydifferent  2.008e-01  1.018e-02  5.376e+03   19.74
+##                                   Pr(&gt;|t|)    
+## (Intercept)                         &lt;2e-16 ***
+## attributeknowledge                  &lt;2e-16 ***
+## dummydifferent                      &lt;2e-16 ***
+## attributeknowledge:dummydifferent   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) attrbt dmmydf
+## attrbtknwld -0.838              
+## dummydffrnt -0.782  0.749       
+## attrbtknwl:  0.701 -0.836 -0.896</code></pre>
+<p>Simple effect of other attribute knowledge:</p>
+<p>b = 0.03</p>
+<p>(effect is much smaller and actually in opposite direction–if anything, more knowledge about the other attributes increases loss aversion whereas more knowledge about the same attribute greatly decreases loss aversion)</p>
+<pre class="r"><code>m1b &lt;- lmer(attlambda_extralong ~ attributeknowledge*dummysame+(1|RESPONDE),data=aul)
+summary(m1b)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: 
+## attlambda_extralong ~ attributeknowledge * dummysame + (1 | RESPONDE)
+##    Data: aul
+## 
+## REML criterion at convergence: 11485.9
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.6010 -0.5979 -0.1372  0.4409  6.1906 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  RESPONDE (Intercept) 0.08325  0.2885  
+##  Residual             0.39030  0.6247  
+## Number of obs: 5760, groups:  RESPONDE, 360
+## 
+## Fixed effects:
+##                                Estimate Std. Error         df t value
+## (Intercept)                   1.721e+00  2.775e-02  1.681e+03  61.993
+## attributeknowledge            3.287e-02  5.613e-03  5.753e+03   5.856
+## dummysame                     7.578e-01  4.285e-02  5.376e+03  17.687
+## attributeknowledge:dummysame -2.008e-01  1.018e-02  5.376e+03 -19.736
+##                              Pr(&gt;|t|)    
+## (Intercept)                    &lt;2e-16 ***
+## attributeknowledge              5e-09 ***
+## dummysame                      &lt;2e-16 ***
+## attributeknowledge:dummysame   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) attrbt dmmysm
+## attrbtknwld -0.763              
+## dummysame   -0.386  0.406       
+## attrbtknwl:  0.346 -0.453 -0.896</code></pre>
+</div>
 <div id="new-models-estimating-risky-choice-and-model-car-loss-aversion-with-attribute-level-knowledge-as-a-predictor" class="section level2">
 <h2>3.3 New models estimating risky choice and model car loss aversion, with attribute-level knowledge as a predictor</h2>
 <p>For the other loss aversion measures (risky choice gambles and model car), the attribute knowledge measure shouldn’t wipe out the other effects. Luckily, it doesn’t. (If it did, that might mean that attribute knowledge is just a better or more reliable measure of actual knowledge)</p>
 <p>It’s also notable that all of these knowledge and experience measures still predict lower loss aversion even in other domains such as gambles/financial domain (albeit with smaller effect sizes than when you have a measure of loss aversion with the specific attribute you measured knowledge for). So we should acknowledge reviewers’ point that general knowledge, education, maybe numeracy, probably do explain some part of the effects.</p>
-<pre class="r"><code>m2a &lt;- lm(FEHR_LAMDA ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC,data=aus)
+<pre class="r"><code>m2a &lt;- lm(fehrlambda ~ AGE+CARUSE+CAR_KNOWLEDGE+avgKNOW+EDUC,data=aus)
 summary(m2a)</code></pre>
 <pre><code>## 
 ## Call:
-## lm(formula = FEHR_LAMDA ~ AGE + CARUSE + CAR_KNOWLEDGE + EDUC, 
-##     data = aus)
+## lm(formula = fehrlambda ~ AGE + CARUSE + CAR_KNOWLEDGE + avgKNOW + 
+##     EDUC, data = aus)
 ## 
 ## Residuals:
 ##      Min       1Q   Median       3Q      Max 
-## -1.16750 -0.39872 -0.08566  0.22023  1.82595 
+## -1.04421 -0.25787 -0.01651  0.20853  1.09500 
 ## 
 ## Coefficients:
 ##               Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)    2.23222    0.16640  13.415  &lt; 2e-16 ***
-## AGE            0.05706    0.02496   2.286   0.0228 *  
-## CARUSE        -0.13894    0.03124  -4.447 1.16e-05 ***
-## CAR_KNOWLEDGE -0.09028    0.02279  -3.961 9.03e-05 ***
-## EDUC          -0.10338    0.04678  -2.210   0.0277 *  
+## (Intercept)    1.94559    0.12753  15.256  &lt; 2e-16 ***
+## AGE            0.03331    0.01696   1.965  0.05022 .  
+## CARUSE        -0.07162    0.02192  -3.268  0.00119 ** 
+## CAR_KNOWLEDGE -0.04575    0.01644  -2.782  0.00569 ** 
+## avgKNOW       -0.12311    0.02627  -4.686 3.98e-06 ***
+## EDUC          -0.05973    0.03119  -1.915  0.05634 .  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 0.5409 on 355 degrees of freedom
-## Multiple R-squared:  0.2552, Adjusted R-squared:  0.2468 
-## F-statistic: 30.41 on 4 and 355 DF,  p-value: &lt; 2.2e-16</code></pre>
-<pre class="r"><code>m3a &lt;- lm(CALCLAMBDAMOD ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC,data=aus)
+## Residual standard error: 0.3602 on 354 degrees of freedom
+## Multiple R-squared:  0.3555, Adjusted R-squared:  0.3464 
+## F-statistic: 39.06 on 5 and 354 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>m3a &lt;- lm(CALCLAMBDAMOD ~ AGE+CARUSE+CAR_KNOWLEDGE+avgKNOW+EDUC,data=aus)
 summary(m3a)</code></pre>
 <pre><code>## 
 ## Call:
-## lm(formula = CALCLAMBDAMOD ~ AGE + CARUSE + CAR_KNOWLEDGE + EDUC, 
-##     data = aus)
+## lm(formula = CALCLAMBDAMOD ~ AGE + CARUSE + CAR_KNOWLEDGE + avgKNOW + 
+##     EDUC, data = aus)
 ## 
 ## Residuals:
 ##     Min      1Q  Median      3Q     Max 
-## -3.0989 -1.0131 -0.3582  0.4074 11.7883 
+## -3.3588 -0.9881 -0.3951  0.4208 11.6923 
 ## 
 ## Coefficients:
 ##               Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)    4.40570    0.62232   7.080 8.26e-12 ***
-## AGE            0.38234    0.09313   4.105 5.05e-05 ***
-## CARUSE        -0.28194    0.11624  -2.425 0.015804 *  
-## CAR_KNOWLEDGE -0.29416    0.08525  -3.450 0.000630 ***
-## EDUC          -0.63002    0.17487  -3.603 0.000361 ***
+## (Intercept)    5.62613    0.70704   7.957 2.63e-14 ***
+## AGE            0.31503    0.09372   3.361 0.000864 ***
+## CARUSE        -0.14804    0.12080  -1.225 0.221249    
+## CAR_KNOWLEDGE -0.17016    0.09126  -1.864 0.063115 .  
+## avgKNOW       -0.50681    0.14661  -3.457 0.000616 ***
+## EDUC          -0.60202    0.17232  -3.494 0.000539 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 2.002 on 342 degrees of freedom
+## Residual standard error: 1.97 on 341 degrees of freedom
 ##   (13 observations deleted due to missingness)
-## Multiple R-squared:  0.2292, Adjusted R-squared:  0.2202 
-## F-statistic: 25.42 on 4 and 342 DF,  p-value: &lt; 2.2e-16</code></pre>
+## Multiple R-squared:  0.2553, Adjusted R-squared:  0.2444 
+## F-statistic: 23.38 on 5 and 341 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
 <div id="robustness-covariates-etc." class="section level1">
@@ -575,34 +726,34 @@ summary(m1c)</code></pre>
 ## GENDER      -0.373  0.020 -0.057  0.073 -0.015  0.009 -0.083  0.060
 ## convergence code: 0
 ## singular fit</code></pre>
-<pre class="r"><code>m2c &lt;- lm(FEHR_LAMDA ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC+INCOME+WEALTH+GENDER+(1|RESPONDE),data=aus)
+<pre class="r"><code>m2c &lt;- lm(fehrlambda ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC+INCOME+WEALTH+GENDER+(1|RESPONDE),data=aus)
 summary(m2c)</code></pre>
 <pre><code>## 
 ## Call:
-## lm(formula = FEHR_LAMDA ~ AGE + CARUSE + CAR_KNOWLEDGE + EDUC + 
+## lm(formula = fehrlambda ~ AGE + CARUSE + CAR_KNOWLEDGE + EDUC + 
 ##     INCOME + WEALTH + GENDER + (1 | RESPONDE), data = aus)
 ## 
 ## Residuals:
-##     Min      1Q  Median      3Q     Max 
-## -1.0194 -0.3524 -0.1049  0.2509  1.8482 
+##      Min       1Q   Median       3Q      Max 
+## -0.96420 -0.23674 -0.02522  0.24941  1.14774 
 ## 
 ## Coefficients: (1 not defined because of singularities)
-##                    Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)       1.6198502  0.2066254   7.840 5.43e-14 ***
-## AGE               0.0006763  0.0261536   0.026 0.979384    
-## CARUSE           -0.1120683  0.0305404  -3.670 0.000281 ***
-## CAR_KNOWLEDGE    -0.0475062  0.0233604  -2.034 0.042739 *  
-## EDUC             -0.1739562  0.0472056  -3.685 0.000265 ***
-## INCOME            0.1315240  0.0305326   4.308 2.14e-05 ***
-## WEALTH            0.0462520  0.0261463   1.769 0.077764 .  
-## GENDER            0.0480246  0.0637543   0.753 0.451787    
-## 1 | RESPONDETRUE         NA         NA      NA       NA    
+##                   Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)       1.218785   0.141271   8.627  &lt; 2e-16 ***
+## AGE               0.009483   0.017881   0.530 0.596205    
+## CARUSE           -0.085148   0.020881  -4.078 5.62e-05 ***
+## CAR_KNOWLEDGE    -0.045410   0.015972  -2.843 0.004728 ** 
+## EDUC             -0.116433   0.032275  -3.608 0.000354 ***
+## INCOME            0.090063   0.020875   4.314 2.08e-05 ***
+## WEALTH            0.036200   0.017876   2.025 0.043621 *  
+## GENDER            0.030559   0.043589   0.701 0.483724    
+## 1 | RESPONDETRUE        NA         NA      NA       NA    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 0.5211 on 352 degrees of freedom
-## Multiple R-squared:  0.3144, Adjusted R-squared:  0.3008 
-## F-statistic: 23.06 on 7 and 352 DF,  p-value: &lt; 2.2e-16</code></pre>
+## Residual standard error: 0.3563 on 352 degrees of freedom
+## Multiple R-squared:  0.373,  Adjusted R-squared:  0.3605 
+## F-statistic: 29.91 on 7 and 352 DF,  p-value: &lt; 2.2e-16</code></pre>
 <pre class="r"><code>m3c &lt;- lm(CALCLAMBDAMOD ~ AGE+CARUSE+CAR_KNOWLEDGE+EDUC+INCOME+WEALTH+GENDER+(1|RESPONDE),data=aus)
 summary(m3c)</code></pre>
 <pre><code>## 
@@ -839,6 +990,175 @@ summary(m2d4)</code></pre>
 ## dummyHM -0.707  0.500
 ## convergence code: 0
 ## singular fit</code></pre>
+</div>
+<div id="getting-cohens-d-for-key-models" class="section level2">
+<h2>4.4 Getting Cohen’s d for key models</h2>
+<pre class="r"><code>aul$CAR_KNOWLEDGE_st&lt;-(aul$CAR_KNOWLEDGE-mean(aul$CAR_KNOWLEDGE,na.rm=TRUE))/(sd(aul$CAR_KNOWLEDGE,na.rm=TRUE))
+
+aul$CARUSE_st&lt;-(aul$CARUSE-mean(aul$CARUSE,na.rm=TRUE))/(sd(aul$CARUSE,na.rm=TRUE))
+
+aul$EDUC_st&lt;-(aul$EDUC-mean(aul$EDUC,na.rm=TRUE))/(sd(aul$EDUC,na.rm=TRUE))
+
+aul$AGE_st&lt;-(aul$AGE-mean(aul$AGE,na.rm=TRUE))/(sd(aul$AGE,na.rm=TRUE))
+
+aul$attributeknowledge_st&lt;-(aul$attributeknowledge-mean(aul$attributeknowledge,na.rm=TRUE))/(sd(aul$attributeknowledge,na.rm=TRUE))
+
+aul$attributelambda_st&lt;-(aul$attlambda_extralong-mean(aul$attlambda_extralong,na.rm=TRUE))/(sd(aul$attlambda_extralong,na.rm=TRUE))
+
+
+
+aus$avgKNOW_st&lt;-(aus$avgKNOW-mean(aus$avgKNOW,na.rm=TRUE))/(sd(aus$avgKNOW,na.rm=TRUE))
+
+aus$CAR_KNOWLEDGE_st&lt;-(aus$CAR_KNOWLEDGE-mean(aus$CAR_KNOWLEDGE,na.rm=TRUE))/(sd(aus$CAR_KNOWLEDGE,na.rm=TRUE))
+
+aus$CARUSE_st&lt;-(aus$CARUSE-mean(aus$CARUSE,na.rm=TRUE))/(sd(aus$CARUSE,na.rm=TRUE))
+
+aus$EDUC_st&lt;-(aus$EDUC-mean(aus$EDUC,na.rm=TRUE))/(sd(aus$EDUC,na.rm=TRUE))
+
+aus$AGE_st&lt;-(aus$AGE-mean(aus$AGE,na.rm=TRUE))/(sd(aus$AGE,na.rm=TRUE))
+
+aus$CALCLAMBDAMOD_st&lt;-(aus$CALCLAMBDAMOD-mean(aus$CALCLAMBDAMOD,na.rm=TRUE))/(sd(aus$CALCLAMBDAMOD,na.rm=TRUE))
+
+aus$fehrlambda_st&lt;-(aus$fehrlambda-mean(aus$fehrlambda,na.rm=TRUE))/(sd(aus$fehrlambda,na.rm=TRUE))
+
+aus$INCOME_st&lt;-scale(aus$INCOME)
+
+aus$WEALTH_st&lt;-scale(aus$WEALTH)
+
+aus$GENDER_st&lt;-scale(aus$GENDER)
+
+
+m1a &lt;- lmer(attributelambda_st ~ attributeknowledge_st*dummydifferent+AGE_st+CARUSE_st+CAR_KNOWLEDGE_st+EDUC_st+(1|RESPONDE),data=aul)
+summary(m1a)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: attributelambda_st ~ attributeknowledge_st * dummydifferent +  
+##     AGE_st + CARUSE_st + CAR_KNOWLEDGE_st + EDUC_st + (1 | RESPONDE)
+##    Data: aul
+## 
+## REML criterion at convergence: 15272.4
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.4006 -0.6061 -0.1480  0.4266  6.3220 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  RESPONDE (Intercept) 0.09313  0.3052  
+##  Residual             0.77071  0.8779  
+## Number of obs: 5760, groups:  RESPONDE, 360
+## 
+## Fixed effects:
+##                                        Estimate Std. Error         df
+## (Intercept)                          -1.529e-18  2.818e-02  1.343e+03
+## attributeknowledge_st                -4.183e-01  2.403e-02  5.585e+03
+## dummydifferent                        3.990e-17  2.671e-02  5.392e+03
+## AGE_st                                1.374e-01  2.239e-02  3.517e+02
+## CARUSE_st                            -9.058e-02  2.493e-02  3.548e+02
+## CAR_KNOWLEDGE_st                     -1.244e-01  2.561e-02  3.576e+02
+## EDUC_st                               5.555e-03  2.005e-02  3.501e+02
+## attributeknowledge_st:dummydifferent  5.277e-01  2.672e-02  5.392e+03
+##                                      t value Pr(&gt;|t|)    
+## (Intercept)                            0.000 1.000000    
+## attributeknowledge_st                -17.410  &lt; 2e-16 ***
+## dummydifferent                         0.000 1.000000    
+## AGE_st                                 6.137 2.27e-09 ***
+## CARUSE_st                             -3.634 0.000321 ***
+## CAR_KNOWLEDGE_st                      -4.860 1.76e-06 ***
+## EDUC_st                                0.277 0.781922    
+## attributeknowledge_st:dummydifferent  19.751  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) attrb_ dmmydf AGE_st CARUSE CAR_KN EDUC_s
+## attrbtknwl_  0.000                                          
+## dummydffrnt -0.711  0.000                                   
+## AGE_st       0.000  0.029  0.000                            
+## CARUSE_st    0.000 -0.047  0.000  0.164                     
+## CAR_KNOWLED  0.000 -0.059  0.000  0.265 -0.497              
+## EDUC_st      0.000 -0.008  0.000 -0.130 -0.087  0.041       
+## attrbtknw_:  0.000 -0.834  0.000  0.000  0.000  0.000  0.000</code></pre>
+<pre class="r"><code>confint(m1a,method='Wald')</code></pre>
+<pre><code>##                                            2.5 %      97.5 %
+## .sig01                                        NA          NA
+## .sigma                                        NA          NA
+## (Intercept)                          -0.05522475  0.05522475
+## attributeknowledge_st                -0.46543971 -0.37124616
+## dummydifferent                       -0.05235780  0.05235780
+## AGE_st                                0.09351953  0.18129109
+## CARUSE_st                            -0.13944302 -0.04172409
+## CAR_KNOWLEDGE_st                     -0.17463865 -0.07425564
+## EDUC_st                              -0.03374913  0.04486005
+## attributeknowledge_st:dummydifferent  0.47530246  0.58002716</code></pre>
+<pre class="r"><code>m2a &lt;- lm(fehrlambda_st ~ AGE_st+CARUSE_st+CAR_KNOWLEDGE_st+avgKNOW_st+EDUC_st,data=aus)
+summary(m2a)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = fehrlambda_st ~ AGE_st + CARUSE_st + CAR_KNOWLEDGE_st + 
+##     avgKNOW_st + EDUC_st, data = aus)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -2.34374 -0.57879 -0.03707  0.46805  2.45775 
+## 
+## Coefficients:
+##                    Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)       1.135e-16  4.261e-02   0.000  1.00000    
+## AGE_st            9.650e-02  4.912e-02   1.965  0.05022 .  
+## CARUSE_st        -1.841e-01  5.635e-02  -3.268  0.00119 ** 
+## CAR_KNOWLEDGE_st -1.652e-01  5.940e-02  -2.782  0.00569 ** 
+## avgKNOW_st       -2.785e-01  5.944e-02  -4.686 3.98e-06 ***
+## EDUC_st          -8.279e-02  4.324e-02  -1.915  0.05634 .  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.8084 on 354 degrees of freedom
+## Multiple R-squared:  0.3555, Adjusted R-squared:  0.3464 
+## F-statistic: 39.06 on 5 and 354 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>confint(m2a,method='Wald')</code></pre>
+<pre><code>##                          2.5 %       97.5 %
+## (Intercept)      -8.379691e-02  0.083796908
+## AGE_st           -9.363498e-05  0.193099828
+## CARUSE_st        -2.949332e-01 -0.073302839
+## CAR_KNOWLEDGE_st -2.820624e-01 -0.048435334
+## avgKNOW_st       -3.954427e-01 -0.161634316
+## EDUC_st          -1.678384e-01  0.002249211</code></pre>
+<pre class="r"><code>m3a &lt;- lm(CALCLAMBDAMOD_st ~ AGE_st+CARUSE_st+CAR_KNOWLEDGE_st+avgKNOW_st+EDUC_st,data=aus)
+summary(m3a)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = CALCLAMBDAMOD_st ~ AGE_st + CARUSE_st + CAR_KNOWLEDGE_st + 
+##     avgKNOW_st + EDUC_st, data = aus)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -1.4819 -0.4359 -0.1743  0.1857  5.1586 
+## 
+## Coefficients:
+##                   Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)       0.001131   0.046671   0.024 0.980685    
+## AGE_st            0.179382   0.053366   3.361 0.000864 ***
+## CARUSE_st        -0.074810   0.061047  -1.225 0.221249    
+## CAR_KNOWLEDGE_st -0.120814   0.064798  -1.864 0.063115 .  
+## avgKNOW_st       -0.225402   0.065205  -3.457 0.000616 ***
+## EDUC_st          -0.164039   0.046955  -3.494 0.000539 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.8693 on 341 degrees of freedom
+##   (13 observations deleted due to missingness)
+## Multiple R-squared:  0.2553, Adjusted R-squared:  0.2444 
+## F-statistic: 23.38 on 5 and 341 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>confint(m3a,method='Wald')</code></pre>
+<pre><code>##                        2.5 %       97.5 %
+## (Intercept)      -0.09066877  0.092930281
+## AGE_st            0.07441494  0.284349108
+## CARUSE_st        -0.19488579  0.045265389
+## CAR_KNOWLEDGE_st -0.24826896  0.006640209
+## avgKNOW_st       -0.35365677 -0.097147603
+## EDUC_st          -0.25639597 -0.071681737</code></pre>
+<p>Making APA format tables (Stargazer); won’t display in .html version</p>
 </div>
 </div>
 
