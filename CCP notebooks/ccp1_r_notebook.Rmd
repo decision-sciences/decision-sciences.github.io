@@ -16,7 +16,7 @@ Present bias predicts less search and lower accuracy.
 
 The effect of present bias on search is especially large for the "standard APR" attribute (significant interaction), but is positive for all four attributes.  
 
-There is also a significant delta x introductory period interaction, just as in CCP4 (the effect of delta on search is especially large for introductory period).  
+There is also a significant delta x introductory period interaction, just as in CCP4 (the effect of delta on search is especially large for the introductory period).  
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
