@@ -1,0 +1,257 @@
+---
+title: "CCP 0 analysis"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '4'
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_depth: '4'
+    toc_float: yes
+---
+## 1. Summary
+
+Present bias predicts lower accuracy. The effect on a continuous measure of accuracy is robust, but on the yes/no accuracy is not particularly robust. (I pre-registered both measures.)
+  
+Present bias predicts less time spent searching/making credit card decision, although this is only true when we control for total time spent on the survey which was a suppressor.
+
+
+  
+  
+Notes. The continuous accuracy measure is total costs of the credit card, so higher scores mean choosing cards with higher costs (worse choices). The categorical accuracy is yes/no where yes=1, so higher scores mean more accurate. Beta is coded with Qi's method, 1 means no present biased, 0 is the most present biased. 
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+######Script for 16 rows per person for possibly more powerful analyses (t)
+library(dplyr)
+library(effects)
+library(lme4)
+library(lmerTest)
+library(e1071)
+library(mediation)
+library(ggplot2)
+library(RCurl)
+
+# Load data from github
+ccp0<-read.csv("/Users/Kelle/Documents/ccp0_clean.csv")
+
+#Time spent on rest of survey
+ccp0$restofsurvey<-ccp0$surveytime-(ccp0$cctime/60)
+
+ccp0$logrestofsurvey<-log10(ccp0$restofsurvey+1.85)
+
+ccp0$cctime<-ccp0$Q181_3
+
+ccp0$logtime<-log10(ccp0$cctime)
+
+```
+
+## 2. DEEP histograms
+
+### Beta and Delta (Qi's method)
+```{r}
+ggplot(ccp0, aes(x = beta)) + geom_density()
+ggplot(ccp0, aes(x = delta)) + geom_density()
+cor.test(ccp0$beta,ccp0$delta)
+```
+
+## 3. Boxes opened and timing summary statistics 
+
+### 3.1. Descriptive Plots and Stats for Accuracy and Time Variables
+
+Time spent on whole survey is in minutes.
+  
+Time spent on credit card choice is in seconds.
+  
+```{r}
+
+#Time spent on whole survey
+ggplot(ccp0, aes(x = surveytime)) + geom_density()
+
+#Time spent searching/choosing credit card
+ggplot(ccp0, aes(x = cctime)) + geom_density()
+
+
+#CC choice Accuracy: Continuous
+hist(ccp0$ccCost,main="Credit card total costs (continuous)",xlab="Dollars",breaks=40)
+
+#Number of participants choosing card with each level of total costs.
+table(ccp0$ccCost)
+
+#CC Choice Accuracy: Binary (yes=1/no=0)
+table(ccp0$correct)
+
+
+```
+
+
+### 3.2 Skewness of variables
+
+The time variables had large positive skews and log transformations work well (also pre-registered that we would log-transform if skewness was this high).
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+skewness(ccp0$cctime)
+skewness(ccp0$logtime)
+skewness(ccp0$restofsurvey)
+skewness(ccp0$logrestofsurvey)
+
+```
+
+## 4. Main Analyses 
+
+### 4.1. Present bias predicts choosing cards with higher total costs (continuous measure of inaccuracy, which we pre-registered)
+
+Strongest effect is on this measure   
+```{r}
+m1a<-lm(ccCost~beta+delta,data=ccp0)
+summary(m1a)
+```
+
+### 4.2. Present bias predicts lower accuracy (binary measure of accuracy, yes/no, which we also pre-registered)
+
+
+```{r}
+m1b<-glm(correct~beta+delta,data=ccp0,family=binomial)
+summary(m1b)
+```
+
+
+### 4.3. Present bias and time spent searching/choosing credit card
+
+Effect of beta on time spent choosing is non-significant (1st model below), except when you control for total time spent on survey (2nd model below).
+
+```{r}
+m2<-lm(logtime~beta+delta,data=ccp0)
+summary(m2)
+
+#We do get an effect of present bias on less time spent making credit card choices when we control for total time spent on survey (because present-biased people spend more time on the survey overall, which suppressed the effect on credit card search time)
+
+m2a<-lm(logtime~beta+delta+logrestofsurvey,data=ccp0)
+summary(m2a)
+
+```
+
+
+###  4.4.  We get a significant indirect effect (though only when we control for time spent on rest of survey). 
+
+(This is controlling for total time spent on survey. If we don't control for total time spent on survey, there is nothing close to an indirect effect.) 
+
+Mediation model (ACME is the indirect effect). This was pre-registered as a "secondary analysis".
+
+```{r}
+
+a <- lm(logtime ~ beta+delta+logrestofsurvey, data=ccp0)
+b <- lm(ccCost ~ beta+delta + logtime+logrestofsurvey, data=ccp0)
+
+# Estimation via quasi-Bayesian approximation
+contcont <- mediate(a, b, sims=5000, treat="beta", mediator="logtime")
+summary(contcont)
+
+```
+
+
+## 5. Pre-registered robustness tests
+
+### 5.1  Control for self-reported credit score (nothing changes)
+
+```{r}
+
+m1ac<-lm(ccCost~beta+delta+Cscore,data=ccp0)
+summary(m1ac)
+
+m1bc<-glm(correct~beta+delta+Cscore,data=ccp0,family=binomial)
+summary(m1bc)
+
+m2c<-lm(logtime~beta+delta+Cscore+logrestofsurvey,data=ccp0)
+summary(m2c)
+
+```
+
+
+
+### 5.2  Exclude people who don't own a credit card.
+
+Effects get slightly stronger. Yes/no accuracy goes from p=.052 to p=.02
+```{r}
+own<-ccp0[(ccp0$Q131==1),]
+
+
+m1ae<-lm(ccCost~beta+delta,data=own)
+summary(m1ae)
+
+m1be<-glm(correct~beta+delta,data=own,family=binomial)
+summary(m1be)
+
+m2e<-lm(logtime~beta+delta+logrestofsurvey,data=own)
+summary(m2e)
+
+```
+
+
+### 5.3  Exclude search time outliers.
+
+Accuracy effects are unchanged. Search time effect goes away when we exclude the outliers who spent more than 5 min on credit card choice (goes away even when controlling for total survey time).
+
+```{r}
+exc<-ccp0[(ccp0$cctime<300),]
+
+m1ad<-lm(ccCost~beta+delta,data=exc)
+summary(m1ad)
+
+m1bd<-glm(correct~beta+delta,data=exc,family=binomial)
+summary(m1bd)
+
+m2d<-lm(cctime~beta+delta+logrestofsurvey,data=exc)
+summary(m2d)
+
+
+```
+
+
+###  5.4   Controlling for all of the key covariates we measured (credit score, financial literacy, numeracy, total time spent on rest of survey, income)
+
+Only the effect on continuous credit card costs remains.
+
+For the yes/no accuracy DV, it seems to be financial literacy and numeracy that caused the effect to go away; if you remove both those covariates, the effect reappears. If you add just one of those back in (either one), the effect goes away.
+
+```{r}
+
+m1af<-lm(ccCost~beta+delta+Cscore+FL_tot+Numeracy+logrestofsurvey+hh_income,data=ccp0)
+summary(m1af)
+
+m1bf<-glm(correct~beta+delta+Cscore+FL_tot+Numeracy+logrestofsurvey+hh_income,data=ccp0,family=binomial)
+summary(m1bf)
+
+m2cf<-lm(logtime~beta+delta+Cscore+FL_tot+Numeracy+logrestofsurvey+hh_income,data=ccp0)
+summary(m2cf)
+
+#financial literacy, self-reported credit scores, income category, numeracy, and time spent on the rest of the survey (not including credit card choice task)
+```
+
+
+
+## 6. Other tests (not pre-registered)
+
+Excluding people who calculated costs with Excel or Calculator
+
+Effects get weaker. Only the continuous costs measure remains significant.
+
+```{r}
+nocalc<-ccp0[(ccp0$calculator==0),]
+nodevice<-nocalc[(nocalc$otherdev==0),]
+noexcel<-nodevice[(nodevice$spreadsheet==0),]
+
+m1ad<-lm(ccCost~beta+delta,data=noexcel)
+summary(m1ad)
+
+m1bd<-glm(correct~beta+delta,data=noexcel,family=binomial)
+summary(m1bd)
+
+m2d<-lm(logtime~beta+delta+logrestofsurvey,data=noexcel)
+summary(m2d)
+
+```
+
+
