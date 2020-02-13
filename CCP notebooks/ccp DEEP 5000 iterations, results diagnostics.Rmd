@@ -1,0 +1,349 @@
+---
+title: "CCP DEEP - redoing with 5000 iterations; getting rhat and other diagnostics"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+This code was executed on the results after running DEEPEst with 5000 iterations on CCP0, CCP1, CCP3, and CCP4 (the 4 studies in the current version of the paper for which DEEP estimates are important; Studies 1-4). 
+
+Load data and packages
+
+```{r}
+library(ggplot2)
+library(bayesplot)
+library(DEEPEst)
+library(rstan)
+
+load("/Users/Kelle/Documents/DEEP Kellen/redo5000/Stan_Time_ccp1_EstHier8questions.Rdata")
+
+c1est<-read.csv("/Users/Kelle/Documents/DEEP Kellen/redo5000/StanEstimates_Time_Parameters_ccp1_EstHier8questions.csv")
+```
+
+
+# 1. CCP1 (first study we ran and first in the paper)
+
+## 1.1 Distribution of beta and delta
+```{r}
+
+ggplot(c1est, aes(x = beta)) + geom_density()
+
+ggplot(c1est, aes(x = delta)) + geom_density()
+
+```
+
+## 1.2 Average rhat across the sample
+
+
+Rstan documentation says they recommend "only using the sample if R-hat is less than 1.05". Assuming they mean average R-hat less than 1.05, we seem to pass this rule in CCP1 (barely). Antonia said rhat should be under 1, which we don't quite pass.
+
+
+```{r}
+#for beta
+rhat(hier_time, pars = "mubeta")
+
+#for delta
+rhat(hier_time, pars = "mudelta_phi")
+
+#for theta (the error?)
+rhat(hier_time, pars = "mutheta")
+
+```
+
+## 1.3 Correlation between beta and delta
+
+```{r}
+#beta and delta (annual discount factor) correlation
+cor(c1est$beta,c1est$delta)
+
+#beta and daily discount rate correlation
+cor(c1est$beta,c1est$r)
+
+
+plot(c1est$beta,c1est$delta)
+
+
+```
+
+##  1.4 Pairs plots
+
+Antonia does this one participant at a time, so it's not clear to me what the overall takeaway is. Seems like most pairs plots between beta and delta look okay, though beta and r looks less good (perhaps because r has big positive skew?)
+
+First 12 participants shown below
+```{r}
+
+pairs(hier_time,pars=c("beta[1]", "r[1]", "delta[1]"))
+
+pairs(hier_time,pars=c("beta[2]", "r[2]", "delta[2]"))
+
+pairs(hier_time,pars=c("beta[3]", "r[3]", "delta[3]"))
+
+pairs(hier_time,pars=c("beta[4]", "r[4]", "delta[4]"))
+
+pairs(hier_time,pars=c("beta[5]", "r[5]", "delta[5]"))
+
+pairs(hier_time,pars=c("beta[6]", "r[6]", "delta[6]"))
+
+pairs(hier_time,pars=c("beta[7]", "r[7]", "delta[7]"))
+
+pairs(hier_time,pars=c("beta[8]", "r[8]", "delta[8]"))
+
+pairs(hier_time,pars=c("beta[9]", "r[9]", "delta[9]"))
+
+pairs(hier_time,pars=c("beta[10]", "r[10]", "delta[10]"))
+
+pairs(hier_time,pars=c("beta[11]", "r[11]", "delta[11]"))
+
+pairs(hier_time,pars=c("beta[12]", "r[12]", "delta[12]"))
+```
+
+
+
+# 2. CCP3 (eye-tracking and prolific, combined)
+
+
+## 2.1 Distribution of beta and delta
+```{r}
+load("/Users/Kelle/Documents/DEEP Kellen/redo5000/Stan_Time_ccp3_EstHier8questions.Rdata")
+
+c3est<-read.csv("/Users/Kelle/Documents/DEEP Kellen/redo5000/StanEstimates_Time_Parameters_ccp3_EstHier8questions.csv")
+
+ggplot(c3est, aes(x = beta)) + geom_density()
+
+ggplot(c3est, aes(x = delta)) + geom_density()
+
+```
+
+## 2.2 Average rhat across the sample
+
+
+Rstan documentation says they recommend "only using the sample if R-hat is less than 1.05". Assuming they mean average R-hat less than 1.05, we seem to pass this rule in CCP3.
+
+
+```{r}
+#for beta
+rhat(hier_time, pars = "mubeta")
+
+#for delta
+rhat(hier_time, pars = "mudelta_phi")
+
+#for theta (the error?)
+rhat(hier_time, pars = "mutheta")
+
+```
+
+## 2.3 Correlation between beta and delta
+
+```{r}
+#beta and delta (annual discount factor) correlation
+cor(c3est$beta,c3est$delta)
+
+
+#beta and daily discount rate correlation
+cor(c3est$beta,c3est$r)
+
+plot(c3est$beta,c3est$delta)
+
+```
+
+##  2.4 Pairs plots
+
+First 12 participants shown below
+
+```{r}
+
+pairs(hier_time,pars=c("beta[1]", "r[1]", "delta[1]"))
+
+pairs(hier_time,pars=c("beta[2]", "r[2]", "delta[2]"))
+
+pairs(hier_time,pars=c("beta[3]", "r[3]", "delta[3]"))
+
+pairs(hier_time,pars=c("beta[4]", "r[4]", "delta[4]"))
+
+pairs(hier_time,pars=c("beta[5]", "r[5]", "delta[5]"))
+
+pairs(hier_time,pars=c("beta[6]", "r[6]", "delta[6]"))
+
+pairs(hier_time,pars=c("beta[7]", "r[7]", "delta[7]"))
+
+pairs(hier_time,pars=c("beta[8]", "r[8]", "delta[8]"))
+
+pairs(hier_time,pars=c("beta[9]", "r[9]", "delta[9]"))
+
+pairs(hier_time,pars=c("beta[10]", "r[10]", "delta[10]"))
+
+pairs(hier_time,pars=c("beta[11]", "r[11]", "delta[11]"))
+
+pairs(hier_time,pars=c("beta[12]", "r[12]", "delta[12]"))
+
+```
+
+
+
+
+
+# 3. CCP4 (mostly a replication of CCP1)
+
+
+## 3.1 Distribution of beta and delta
+```{r}
+load("/Users/Kelle/Documents/DEEP Kellen/redo5000/Stan_Time_ccp4_EstHier12questions.Rdata")
+
+c4est<-read.csv("/Users/Kelle/Documents/DEEP Kellen/redo5000/StanEstimates_Time_Parameters_ccp4_EstHier12questions.csv")
+
+ggplot(c4est, aes(x = beta)) + geom_density()
+
+ggplot(c4est, aes(x = delta)) + geom_density()
+
+```
+
+## 3.2 Average rhat across the sample
+
+Rstan documentation says they recommend "only using the sample if R-hat is less than 1.05". Assuming they mean average R-hat less than 1.05, we seem to pass this rule in CCP4.
+
+
+```{r}
+#for beta
+rhat(hier_time, pars = "mubeta")
+
+#for delta
+rhat(hier_time, pars = "mudelta_phi")
+
+#for theta (the error?)
+rhat(hier_time, pars = "mutheta")
+
+```
+
+## 3.3 Correlation between beta and delta
+
+```{r}
+#beta and delta (annual discount factor) correlation
+cor(c4est$beta,c4est$delta)
+
+
+#beta and daily discount rate correlation
+cor(c4est$beta,c4est$r)
+
+
+plot(c4est$beta,c4est$delta)
+
+```
+
+##  3.4 Pairs plots
+
+First 12 participants shown below
+
+```{r}
+
+pairs(hier_time,pars=c("beta[1]", "r[1]", "delta[1]"))
+
+pairs(hier_time,pars=c("beta[2]", "r[2]", "delta[2]"))
+
+pairs(hier_time,pars=c("beta[3]", "r[3]", "delta[3]"))
+
+pairs(hier_time,pars=c("beta[4]", "r[4]", "delta[4]"))
+
+pairs(hier_time,pars=c("beta[5]", "r[5]", "delta[5]"))
+
+pairs(hier_time,pars=c("beta[6]", "r[6]", "delta[6]"))
+
+pairs(hier_time,pars=c("beta[7]", "r[7]", "delta[7]"))
+
+pairs(hier_time,pars=c("beta[8]", "r[8]", "delta[8]"))
+
+pairs(hier_time,pars=c("beta[9]", "r[9]", "delta[9]"))
+
+pairs(hier_time,pars=c("beta[10]", "r[10]", "delta[10]"))
+
+pairs(hier_time,pars=c("beta[11]", "r[11]", "delta[11]"))
+
+pairs(hier_time,pars=c("beta[12]", "r[12]", "delta[12]"))
+
+```
+
+
+
+
+# 4. CCP0 (used New DEEP unlike 1, 3, and 4; using cash back rewards, more ecologically valid)
+
+
+
+## 4.1 Distribution of beta and delta
+```{r}
+load("/Users/Kelle/Documents/DEEP Kellen/redo5000/Stan_Time_ccp0_EstHier16questions.Rdata")
+
+c0est<-read.csv("/Users/Kelle/Documents/DEEP Kellen/redo5000/StanEstimates_Time_Parameters_ccp0_EstHier16questions.csv")
+
+ggplot(c0est, aes(x = beta)) + geom_density()
+
+ggplot(c0est, aes(x = delta)) + geom_density()
+
+```
+
+## 4.2 Average rhat across the sample
+
+
+Rstan documentation says they recommend "only using the sample if R-hat is less than 1.05". Assuming they mean average R-hat less than 1.05, we pass this for delta and are almost exactly at 1.05 for beta in CCP0.
+
+
+```{r}
+#for beta
+rhat(hier_time, pars = "mubeta")
+
+#for delta
+rhat(hier_time, pars = "mudelta_phi")
+
+#for theta (the error?)
+rhat(hier_time, pars = "mutheta")
+
+```
+
+## 4.3 Correlation between beta and delta
+
+```{r}
+#beta and delta (annual discount factor) correlation
+cor(c0est$beta,c0est$delta)
+
+
+#beta and daily discount rate correlation
+cor(c0est$beta,c0est$r)
+
+plot(c0est$beta,c0est$delta)
+
+```
+
+##  4.4 Pairs plots
+
+First 12 participants shown below
+
+```{r}
+
+pairs(hier_time,pars=c("beta[1]", "r[1]", "delta[1]"))
+
+pairs(hier_time,pars=c("beta[2]", "r[2]", "delta[2]"))
+
+pairs(hier_time,pars=c("beta[3]", "r[3]", "delta[3]"))
+
+pairs(hier_time,pars=c("beta[4]", "r[4]", "delta[4]"))
+
+pairs(hier_time,pars=c("beta[5]", "r[5]", "delta[5]"))
+
+pairs(hier_time,pars=c("beta[6]", "r[6]", "delta[6]"))
+
+pairs(hier_time,pars=c("beta[7]", "r[7]", "delta[7]"))
+
+pairs(hier_time,pars=c("beta[8]", "r[8]", "delta[8]"))
+
+pairs(hier_time,pars=c("beta[9]", "r[9]", "delta[9]"))
+
+pairs(hier_time,pars=c("beta[10]", "r[10]", "delta[10]"))
+
+pairs(hier_time,pars=c("beta[11]", "r[11]", "delta[11]"))
+
+pairs(hier_time,pars=c("beta[12]", "r[12]", "delta[12]"))
+
+```
+
